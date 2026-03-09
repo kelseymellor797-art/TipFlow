@@ -61,7 +61,7 @@ final class ShiftStore {
         guard activeInteraction == nil else { return }
         activeInteraction  = InteractionSession()
         interactionElapsed = 0
-        nextPromptAt       = 60
+        nextPromptAt       = 300
         showOneMinutePrompt = false
         saveActiveInteraction()
         startTimer()
@@ -76,7 +76,7 @@ final class ShiftStore {
     /// Dismiss the prompt; re-prompt in another minute.
     func dismissOneMinutePrompt() {
         showOneMinutePrompt = false
-        nextPromptAt = interactionElapsed + 60
+        nextPromptAt = interactionElapsed + 300
     }
 
     func endInteraction(outcome: InteractionOutcome, amount: Double?) {
@@ -182,7 +182,7 @@ final class ShiftStore {
                 UserDefaults.standard.double(forKey: Keys.interactionElapsed),
                 Date().timeIntervalSince(interaction.startTime)
             )
-            nextPromptAt = ceil(interactionElapsed / 60) * 60 + 60
+            nextPromptAt = ceil(interactionElapsed / 300) * 300 + 300
             startTimer()
         }
     }
