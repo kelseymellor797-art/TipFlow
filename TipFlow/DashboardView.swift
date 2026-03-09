@@ -182,9 +182,8 @@ private struct QuickLogGrid: View {
         .buttonStyle(ScaleButtonStyle())
     }
         }
-    }
 
-    @ViewBuilder
+@ViewBuilder
     private func earningsGroup<Content: View>(
         title: String,
         color: Color,
@@ -200,9 +199,8 @@ private struct QuickLogGrid: View {
             }
         }
     }
-}
 
-// MARK: - Preview
+// "MARK: Preview"
 
 #Preview {
     DashboardView()
