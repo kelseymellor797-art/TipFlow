@@ -418,3 +418,139 @@ struct CategoryChip: View {
         .animation(.easeInOut(duration: 0.15), value: isSelected)
     }
 }
+
+// MARK: - SetGoalSheet
+
+struct SetGoalSheet: View {
+    @Environment(ShiftStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var goalText: String = ""
+    @FocusState private var isFocused: Bool
+
+    private var parsedGoal: Double? { Double(goalText) }
+    private var isValid: Bool { (parsedGoal ?? 0) > 0 }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.black.ignoresSafeArea()
+
+                VStack(spacing: 32) {
+                    // Current goal label
+                    VStack(spacing: 6) {
+                        Text("Current Goal")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.4))
+                            .textCase(.uppercase)
+                            .kerning(1)
+                        Text(store.nightlyGoal, format: .currency(code: "USD"))
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.35))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 8)
+
+                    // New goal input
+                    VStack(spacing: 12) {
+                        HStack(alignment: .center, spacing: 4) {
+                            Text("$")
+                                .font(.system(size: 44, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.35))
+                                .padding(.top, 6)
+                            Text(goalText.isEmpty ? "0" : goalText)
+                                .font(.system(size: 72, weight: .bold, design: .rounded))
+                                .foregroundStyle(isValid ? .white : .white.opacity(0.3))
+                                .contentTransition(.numericText())
+                                .animation(.spring(duration: 0.2), value: goalText)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        // Hidden field drives keyboard
+                        TextField("", text: $goalText)
+                            .keyboardType(.decimalPad)
+                            .focused($isFocused)
+                            .frame(width: 1, height: 1)
+                            .opacity(0.01)
+                            .onAppear {
+                                isFocused = true
+                                goalText = String(format: "%.0f", store.nightlyGoal)
+                            }
+                    }
+
+                    // Quick-pick presets
+                    VStack(alignment: .leading, spacing: 10) {
+                        SectionHeader(title: "Quick Pick")
+                        HStack(spacing: 8) {
+                            ForEach([200, 300, 400, 500, 600], id: \.self) { preset in
+                                Button {
+                                    UISelectionFeedbackGenerator().selectionChanged()
+                                    goalText = "\(preset)"
+                                } label: {
+                                    Text("$\(preset)")
+                                        .font(.subheadline.weight(.semibold))
+                                        .padding(.vertical, 10)
+                                        .frame(maxWidth: .infinity)
+                                        .background(
+                                            goalText == "\(preset)"
+                                                ? Color.pink.opacity(0.25)
+                                                : Color.white.opacity(0.08)
+                                        )
+                                        .foregroundStyle(
+                                            goalText == "\(preset)" ? .pink : .white.opacity(0.6)
+                                        )
+                                        .clipShape(Capsule())
+                                        .overlay(
+                                            Capsule().strokeBorder(
+                                                goalText == "\(preset)"
+                                                    ? Color.pink.opacity(0.5) : Color.clear,
+                                                lineWidth: 1.5
+                                            )
+                                        )
+                                }
+                                .buttonStyle(ScaleButtonStyle())
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Spacer()
+                }
+                .padding(.horizontal, 24)
+            }
+            .navigationTitle("Nightly Goal")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(.white.opacity(0.55))
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    guard let goal = parsedGoal, goal > 0 else { return }
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    store.updateGoal(goal)
+                    dismiss()
+                } label: {
+                    Text(isValid
+                         ? "Set Goal to \((parsedGoal ?? 0), format: .currency(code: "USD"))"
+                         : "Enter an Amount")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(isValid ? Color.pink : Color.white.opacity(0.15))
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+                .buttonStyle(ScaleButtonStyle())
+                .disabled(!isValid)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+                .background(.ultraThinMaterial)
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationBackground(.black)
+    }
+}

@@ -9,6 +9,7 @@ struct DashboardView: View {
     @State private var showEndShift    = false
     @State private var showCustom      = false
     @State private var customType      = EarningsType.custom
+    @State private var showGoalEditor  = false
 
     var body: some View {
         @Bindable var store = store
@@ -47,7 +48,8 @@ struct DashboardView: View {
                         // ── Goal progress ─────────────────────────────────
                         GoalProgressBar(
                             current: store.currentShift.totalEarnings,
-                            goal:    store.nightlyGoal
+                            goal:    store.nightlyGoal,
+                            onEdit:  { showGoalEditor = true }
                         )
 
                         // ── Interaction ───────────────────────────────────
@@ -90,6 +92,9 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $showCustom) {
             CustomAmountSheet(initialType: customType)
+        }
+        .sheet(isPresented: $showGoalEditor) {
+            SetGoalSheet()
         }
         .sheet(isPresented: $store.showEndInteractionSheet) {
             EndInteractionSheet()

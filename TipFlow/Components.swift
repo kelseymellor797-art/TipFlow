@@ -86,6 +86,7 @@ struct BreakdownCard: View {
 struct GoalProgressBar: View {
     let current: Double
     let goal: Double
+    var onEdit: (() -> Void)? = nil
 
     private var progress: Double  { min(current / max(goal, 1), 1.0) }
     private var percentage: Int   { Int(progress * 100) }
@@ -110,6 +111,15 @@ struct GoalProgressBar: View {
                 Text("\(percentage)%")
                     .font(.subheadline.bold())
                     .foregroundStyle(isComplete ? .yellow : .white)
+                if let onEdit {
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil.circle")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.35))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, 4)
+                }
             }
 
             GeometryReader { geo in
