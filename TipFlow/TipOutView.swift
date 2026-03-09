@@ -1,5 +1,5 @@
 // TipOutView.swift — TipFlow
-// End-of-shift tip-out calculator. 10% each to Manager, DJ, Bouncer.
+// End-of-shift tip-out calculator. Manager & DJ fixed at 10%; Bouncer customizable.
 
 import SwiftUI
 import UIKit
@@ -8,26 +8,28 @@ struct TipOutView: View {
     @Environment(ShiftStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
-    // Allow override for a custom total (e.g. if ending mid-shift with a specific amount)
     var overrideTotal: Double? = nil
+
+    @State private var bouncerExpanded = false
 
     private var total: Double { overrideTotal ?? store.currentShift.totalEarnings }
 
-    private struct Recipient {
+    private struct FixedRecipient {
         let role: String
         let icon: String
-        let rate: Double      // 0.0 – 1.0
+        let rate: Double
         let gradient: LinearGradient
     }
 
-    private let recipients: [Recipient] = [
-        Recipient(role: "Manager",         icon: "person.badge.shield.checkmark", rate: 0.10, gradient: AppTheme.primaryGradient),
-        Recipient(role: "DJ",              icon: "music.note",                     rate: 0.10, gradient: AppTheme.blueGradient),
-        Recipient(role: "Bouncer",         icon: "figure.stand",                   rate: 0.05, gradient: AppTheme.tealGradient),
+    private let fixedRecipients: [FixedRecipient] = [
+        FixedRecipient(role: "Manager", icon: "person.badge.shield.checkmark", rate: 0.10, gradient: AppTheme.primaryGradient),
+        FixedRecipient(role: "DJ",      icon: "music.note",                    rate: 0.10, gradient: AppTheme.blueGradient),
     ]
 
-    private var totalTipOut: Double { recipients.reduce(0) { $0 + (total * $1.rate) } }
-    private var takeHome: Double    { total - totalTipOut }
+    private var totalTipOut: Double {
+        fixedRecipients.reduce(0) { $0 + total * $1.rate } + total * store.bouncerRate
+    }
+    private var takeHome: Double { total - totalTipOut }
 
     var body: some View {
         NavigationStack {
@@ -58,11 +60,12 @@ struct TipOutView: View {
                         )
 
                         // ── Tip out rows ──────────────────────────────────
-                        SectionHeader(title: "Tip Out (10% each)")
+                        SectionHeader(title: "Tip Out")
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         VStack(spacing: 10) {
-                            ForEach(recipients, id: \.role) { r in
+                            // Fixed rows
+                            ForEach(fixedRecipients, id: \.role) { r in
                                 TipOutRow(
                                     role:     r.role,
                                     icon:     r.icon,
@@ -71,9 +74,18 @@ struct TipOutView: View {
                                     gradient: r.gradient
                                 )
                             }
+
+                            // Bouncer — editable
+                            BouncerRow(
+                                rate:        store.bouncerRate,
+                                amount:      total * store.bouncerRate,
+                                isExpanded:  $bouncerExpanded
+                            ) { newRate in
+                                store.updateBouncerRate(newRate)
+                            }
                         }
 
-                        // ── Divider + summary ─────────────────────────────
+                        // ── Summary ───────────────────────────────────────
                         VStack(spacing: 12) {
                             Rectangle()
                                 .fill(AppTheme.borderGlow)
@@ -88,16 +100,13 @@ struct TipOutView: View {
                                     Text(totalTipOut, format: .currency(code: "USD"))
                                         .font(.system(size: 28, weight: .bold, design: .rounded))
                                         .foregroundStyle(AppTheme.neonPink)
+                                        .contentTransition(.numericText(value: totalTipOut))
+                                        .animation(.spring(duration: 0.3), value: totalTipOut)
                                 }
                                 Spacer()
-                                VStack(alignment: .trailing, spacing: 4) {
-                                    Text("\(Int(totalTipOut / max(total, 1) * 100))% of earnings")
-                                        .font(.caption)
-                                        .foregroundStyle(AppTheme.textTertiary)
-                                    Text("(\(Int(totalTipOut / max(total, 1) * 100))%)")
-                                        .font(.subheadline)
-                                        .foregroundStyle(AppTheme.textSecondary)
-                                }
+                                Text("\(Int((totalTipOut / max(total, 1)) * 100))% of earnings")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.textTertiary)
                             }
                             .padding(18)
                             .background(AppTheme.cardBg)
@@ -118,6 +127,8 @@ struct TipOutView: View {
                             Text(takeHome, format: .currency(code: "USD"))
                                 .font(.system(size: 48, weight: .bold, design: .rounded))
                                 .foregroundStyle(AppTheme.textPrimary)
+                                .contentTransition(.numericText(value: takeHome))
+                                .animation(.spring(duration: 0.3), value: takeHome)
                                 .shadow(color: AppTheme.neonPurple.opacity(0.55), radius: 12, y: 4)
                         }
                         .frame(maxWidth: .infinity)
@@ -161,7 +172,7 @@ struct TipOutView: View {
     }
 }
 
-// MARK: - TipOutRow
+// MARK: - TipOutRow (fixed)
 
 private struct TipOutRow: View {
     let role:     String
@@ -172,7 +183,6 @@ private struct TipOutRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            // Icon badge
             Image(systemName: icon)
                 .font(.title3)
                 .foregroundStyle(gradient)
@@ -206,6 +216,124 @@ private struct TipOutRow: View {
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(AppTheme.borderSubtle, lineWidth: 1)
         )
+    }
+}
+
+// MARK: - BouncerRow (editable)
+
+private struct BouncerRow: View {
+    let rate:       Double
+    let amount:     Double
+    @Binding var isExpanded: Bool
+    let onSelect:   (Double) -> Void
+
+    private let presets: [Double] = [0, 0.03, 0.05, 0.08, 0.10, 0.15]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Main row
+            Button { 
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                withAnimation(.spring(duration: 0.3)) { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "figure.stand")
+                        .font(.title3)
+                        .foregroundStyle(AppTheme.tealGradient)
+                        .frame(width: 44, height: 44)
+                        .background(AppTheme.cardBgElevated)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(AppTheme.tealGradient.opacity(0.45), lineWidth: 1)
+                        )
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Bouncer / Doorman")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        HStack(spacing: 4) {
+                            Text("\(Int(rate * 100))% of total")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textTertiary)
+                            Image(systemName: "pencil")
+                                .font(.caption2)
+                                .foregroundStyle(AppTheme.neonViolet.opacity(0.7))
+                        }
+                    }
+
+                    Spacer()
+
+                    Text(amount, format: .currency(code: "USD"))
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .contentTransition(.numericText(value: amount))
+                        .animation(.spring(duration: 0.3), value: amount)
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.textTertiary)
+                }
+                .padding(14)
+            }
+            .buttonStyle(.plain)
+
+            // Expanded preset chips
+            if isExpanded {
+                VStack(spacing: 12) {
+                    Rectangle()
+                        .fill(AppTheme.borderSubtle)
+                        .frame(height: 1)
+                        .padding(.horizontal, 14)
+
+                    HStack(spacing: 8) {
+                        ForEach(presets, id: \.self) { preset in
+                            Button {
+                                UISelectionFeedbackGenerator().selectionChanged()
+                                onSelect(preset)
+                                withAnimation(.spring(duration: 0.2)) { isExpanded = false }
+                            } label: {
+                                Text(preset == 0 ? "None" : "\(Int(preset * 100))%")
+                                    .font(.subheadline.weight(.semibold))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(
+                                        rate == preset
+                                            ? AppTheme.neonViolet.opacity(0.22)
+                                            : AppTheme.cardBgElevated
+                                    )
+                                    .foregroundStyle(
+                                        rate == preset ? AppTheme.neonViolet : AppTheme.textSecondary
+                                    )
+                                    .clipShape(Capsule())
+                                    .overlay(
+                                        Capsule().strokeBorder(
+                                            rate == preset
+                                                ? AppTheme.neonViolet.opacity(0.55)
+                                                : AppTheme.borderSubtle,
+                                            lineWidth: 1.2
+                                        )
+                                    )
+                            }
+                            .buttonStyle(ScaleButtonStyle())
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 14)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .background(AppTheme.cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(
+                    isExpanded ? AppTheme.neonViolet.opacity(0.45) : AppTheme.borderSubtle,
+                    lineWidth: 1
+                )
+        )
+        .animation(.spring(duration: 0.3), value: isExpanded)
     }
 }
 

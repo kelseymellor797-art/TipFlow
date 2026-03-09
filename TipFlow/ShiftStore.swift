@@ -26,6 +26,7 @@ final class ShiftStore {
     // MARK: - Settings
 
     var nightlyGoal: Double = 400
+    var bouncerRate: Double = 0.05
 
     // MARK: - Private
 
@@ -37,6 +38,7 @@ final class ShiftStore {
         static let currentShift        = "tipflow.currentShift"
         static let pastShifts          = "tipflow.pastShifts"
         static let nightlyGoal         = "tipflow.nightlyGoal"
+        static let bouncerRate         = "tipflow.bouncerRate"
         static let activeInteraction   = "tipflow.activeInteraction"
         static let interactionElapsed  = "tipflow.interactionElapsed"
     }
@@ -162,6 +164,9 @@ final class ShiftStore {
         nightlyGoal = UserDefaults.standard.double(forKey: Keys.nightlyGoal)
         if nightlyGoal <= 0 { nightlyGoal = 400 }
 
+        let savedBouncerRate = UserDefaults.standard.double(forKey: Keys.bouncerRate)
+        bouncerRate = savedBouncerRate > 0 ? savedBouncerRate : 0.05
+
         if let data  = UserDefaults.standard.data(forKey: Keys.currentShift),
            let shift = try? JSONDecoder().decode(Shift.self, from: data) {
             currentShift = shift
@@ -190,5 +195,10 @@ final class ShiftStore {
     func updateGoal(_ goal: Double) {
         nightlyGoal = goal
         UserDefaults.standard.set(goal, forKey: Keys.nightlyGoal)
+    }
+
+    func updateBouncerRate(_ rate: Double) {
+        bouncerRate = rate
+        UserDefaults.standard.set(rate, forKey: Keys.bouncerRate)
     }
 }
