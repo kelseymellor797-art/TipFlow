@@ -284,6 +284,8 @@ struct CustomAmountSheet: View {
     @Environment(ShiftStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
+    var initialType: EarningsType = .custom
+
     @State private var amountText: String = ""
     @State private var selectedType: EarningsType = .custom
     @FocusState private var isFocused: Bool
@@ -321,7 +323,10 @@ struct CustomAmountSheet: View {
                         .focused($isFocused)
                         .frame(width: 1, height: 1)
                         .opacity(0.01)
-                        .onAppear { isFocused = true }
+                        .onAppear {
+                            isFocused = true
+                            selectedType = initialType
+                        }
 
                     // Category chips
                     VStack(alignment: .leading, spacing: 12) {

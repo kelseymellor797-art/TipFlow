@@ -8,6 +8,7 @@ struct DashboardView: View {
     @Environment(ShiftStore.self) private var store
     @State private var showEndShift    = false
     @State private var showCustom      = false
+    @State private var customType      = EarningsType.custom
 
     var body: some View {
         @Bindable var store = store
@@ -59,7 +60,7 @@ struct DashboardView: View {
                         }
 
                         // ── Quick log ─────────────────────────────────────
-                        QuickLogGrid(showCustom: $showCustom)
+                        QuickLogGrid(showCustom: $showCustom, customType: $customType)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
@@ -88,7 +89,7 @@ struct DashboardView: View {
             Text("Your shift will be saved to history and a new one will begin.")
         }
         .sheet(isPresented: $showCustom) {
-            CustomAmountSheet()
+            CustomAmountSheet(initialType: customType)
         }
         .sheet(isPresented: $store.showEndInteractionSheet) {
             EndInteractionSheet()
@@ -109,6 +110,7 @@ struct DashboardView: View {
 private struct QuickLogGrid: View {
     @Environment(ShiftStore.self) private var store
     @Binding var showCustom: Bool
+    @Binding var customType: EarningsType
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -123,6 +125,7 @@ private struct QuickLogGrid: View {
                 QuickInputButton(label: "+$40", sublabel: "Lap Dance", color: .pink) {
                     store.logEarnings(type: .lapDance, amount: 40)
                 }
+                customButton(color: .pink, type: .lapDance)
             }
 
             // Stage Tips
@@ -133,6 +136,7 @@ private struct QuickLogGrid: View {
                 QuickInputButton(label: "+$10", sublabel: "Stage Tip", color: .purple) {
                     store.logEarnings(type: .stageTip, amount: 10)
                 }
+                customButton(color: .purple, type: .stageTip)
             }
 
             // Random Tips + Custom
@@ -140,29 +144,38 @@ private struct QuickLogGrid: View {
                 QuickInputButton(label: "+$20", sublabel: "Random Tip", color: .teal) {
                     store.logEarnings(type: .randomTip, amount: 20)
                 }
-                // Custom amount button matches the quick-input visual style
-                Button { showCustom = true } label: {
-                    VStack(spacing: 5) {
-                        Image(systemName: "plus.circle")
-                            .font(.title3)
-                        Text("Custom")
-                            .font(.subheadline.bold())
-                        Text("Amount")
-                            .font(.caption)
-                            .opacity(0.6)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 72)
-                    .background(Color.white.opacity(0.07))
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .strokeBorder(Color.white.opacity(0.18), lineWidth: 1.5)
-                    )
-                }
-                .buttonStyle(ScaleButtonStyle())
+                customButton(color: .teal, type: .randomTip)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func customButton(color: Color, type: EarningsType) -> some View {
+        Button {
+            customType = type
+            showCustom = true
+        } label: {
+            VStack(spacing: 5) {
+                Image(systemName: "plus.circle")
+                    .font(.title3)
+                Text("Custom")
+                    .font(.subheadline.bold())
+                Text("Amount")
+                    .font(.caption)
+                    .opacity(0.6)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 72)
+            .background(color.opacity(0.10))
+            .foregroundStyle(color.opacity(0.85))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(color.opacity(0.30), lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(ScaleButtonStyle())
+    }
         }
     }
 
