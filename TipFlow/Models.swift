@@ -112,9 +112,7 @@ struct Shift: Identifiable, Codable {
     }
 
     var shiftDurationHours: Double {
-        let first = interactions.first?.startTime ?? entries.first?.timestamp ?? startDate
-        let last  = entries.last?.timestamp ?? interactions.last?.endTime ?? startDate
-        return max(0, last.timeIntervalSince(first)) / 3600
+        max(0, Date().timeIntervalSince(startDate)) / 3600
     }
 
     var earningsPerHour: Double {
