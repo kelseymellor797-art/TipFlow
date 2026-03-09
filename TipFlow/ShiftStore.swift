@@ -26,6 +26,8 @@ final class ShiftStore {
     // MARK: - Settings
 
     var nightlyGoal: Double = 400
+    var managerRate: Double = 0.10
+    var djRate:      Double = 0.10
     var bouncerRate: Double = 0.05
 
     // MARK: - Private
@@ -38,6 +40,8 @@ final class ShiftStore {
         static let currentShift        = "tipflow.currentShift"
         static let pastShifts          = "tipflow.pastShifts"
         static let nightlyGoal         = "tipflow.nightlyGoal"
+        static let managerRate         = "tipflow.managerRate"
+        static let djRate              = "tipflow.djRate"
         static let bouncerRate         = "tipflow.bouncerRate"
         static let activeInteraction   = "tipflow.activeInteraction"
         static let interactionElapsed  = "tipflow.interactionElapsed"
@@ -164,6 +168,12 @@ final class ShiftStore {
         nightlyGoal = UserDefaults.standard.double(forKey: Keys.nightlyGoal)
         if nightlyGoal <= 0 { nightlyGoal = 400 }
 
+        let savedManager = UserDefaults.standard.double(forKey: Keys.managerRate)
+        managerRate = savedManager > 0 ? savedManager : 0.10
+
+        let savedDJ = UserDefaults.standard.double(forKey: Keys.djRate)
+        djRate = savedDJ > 0 ? savedDJ : 0.10
+
         let savedBouncerRate = UserDefaults.standard.double(forKey: Keys.bouncerRate)
         bouncerRate = savedBouncerRate > 0 ? savedBouncerRate : 0.05
 
@@ -195,6 +205,16 @@ final class ShiftStore {
     func updateGoal(_ goal: Double) {
         nightlyGoal = goal
         UserDefaults.standard.set(goal, forKey: Keys.nightlyGoal)
+    }
+
+    func updateManagerRate(_ rate: Double) {
+        managerRate = rate
+        UserDefaults.standard.set(rate, forKey: Keys.managerRate)
+    }
+
+    func updateDJRate(_ rate: Double) {
+        djRate = rate
+        UserDefaults.standard.set(rate, forKey: Keys.djRate)
     }
 
     func updateBouncerRate(_ rate: Double) {

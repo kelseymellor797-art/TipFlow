@@ -190,7 +190,7 @@ private struct QuickLogGrid: View {
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(baseColor.opacity(0.35), lineWidth: 1.5)
+                    .strokeBorder(baseColor.opacity(0.35), lineWidth: 3.5)
             )
         }
         .buttonStyle(ScaleButtonStyle())

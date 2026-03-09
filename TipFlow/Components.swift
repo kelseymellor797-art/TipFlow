@@ -43,7 +43,7 @@ struct TotalEarningsCard: View {
                     isGoalMet
                         ? Color(red:1,green:0.80,blue:0.2).opacity(0.45)
                         : AppTheme.borderGlow,
-                    lineWidth: 1.2
+                    lineWidth: 3.2
                 )
         )
     }
@@ -175,7 +175,7 @@ struct QuickInputButton: View {
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(gradient.opacity(0.55), lineWidth: 1.5)
+                    .strokeBorder(gradient.opacity(0.55), lineWidth: 3.5)
             )
         }
         .buttonStyle(ScaleButtonStyle())
@@ -243,7 +243,7 @@ struct ActiveInteractionCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(
             RoundedRectangle(cornerRadius: 18)
-                .strokeBorder(AppTheme.neonPurple.opacity(0.45), lineWidth: 1.2)
+                .strokeBorder(AppTheme.neonPurple.opacity(0.45), lineWidth: 3.2)
         )
         .shadow(color: AppTheme.neonPurple.opacity(0.2), radius: 12, y: 4)
     }

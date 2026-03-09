@@ -82,7 +82,7 @@ struct OneMinutePromptOverlay: View {
             .clipShape(RoundedRectangle(cornerRadius: 26))
             .overlay(
                 RoundedRectangle(cornerRadius: 26)
-                    .strokeBorder(AppTheme.borderGlow, lineWidth: 1.2)
+                    .strokeBorder(AppTheme.borderGlow, lineWidth: 3.2)
             )
             .shadow(color: AppTheme.neonPurple.opacity(0.25), radius: 24, y: 8)
             .padding(.horizontal, 24)
@@ -115,7 +115,7 @@ struct PromptOptionButton: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(baseColor.opacity(0.40), lineWidth: 1.2)
+                    .strokeBorder(baseColor.opacity(0.40), lineWidth: 3.2)
             )
         }
         .buttonStyle(ScaleButtonStyle())
@@ -164,7 +164,7 @@ struct EndInteractionSheet: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .overlay(
                             RoundedRectangle(cornerRadius: 16)
-                                .strokeBorder(AppTheme.borderGlow, lineWidth: 1)
+                                .strokeBorder(AppTheme.borderGlow, lineWidth: 3)
                         )
 
                         // Outcome picker
@@ -203,7 +203,7 @@ struct EndInteractionSheet: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 14)
-                                        .strokeBorder(AppTheme.neonPink.opacity(0.40), lineWidth: 1.2)
+                                        .strokeBorder(AppTheme.neonPink.opacity(0.40), lineWidth: 3.2)
                                 )
                             }
                             .transition(.opacity.combined(with: .move(edge: .top)))
@@ -288,7 +288,7 @@ struct OutcomeRow: View {
                 RoundedRectangle(cornerRadius: 13)
                     .strokeBorder(
                         isSelected ? AppTheme.neonPink.opacity(0.55) : AppTheme.borderSubtle,
-                        lineWidth: 1.2
+                        lineWidth: 3.2
                     )
             )
         }
@@ -422,7 +422,7 @@ struct CategoryChip: View {
                 .clipShape(Capsule())
                 .overlay(
                     Capsule()
-                        .strokeBorder(isSelected ? chipColor.opacity(0.60) : AppTheme.borderSubtle, lineWidth: 1.2)
+                        .strokeBorder(isSelected ? chipColor.opacity(0.60) : AppTheme.borderSubtle, lineWidth: 3.2)
                 )
         }
         .buttonStyle(.plain)
@@ -512,7 +512,7 @@ struct SetGoalSheet: View {
                                             Capsule().strokeBorder(
                                                 goalText == "\(preset)"
                                                     ? AppTheme.neonPink.opacity(0.55) : AppTheme.borderSubtle,
-                                                lineWidth: 1.2
+                                                lineWidth: 3.2
                                             )
                                         )
                                 }

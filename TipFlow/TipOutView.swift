@@ -1,8 +1,14 @@
 // TipOutView.swift — TipFlow
-// End-of-shift tip-out calculator. Manager & DJ fixed at 10%; Bouncer customizable.
+// End-of-shift tip-out calculator. All rates customizable, amounts rounded up.
 
 import SwiftUI
 import UIKit
+
+// Rounds down at .50, up only when fraction > .50 (e.g. 13.50 → 13, 13.51 → 14)
+private func roundTipOut(_ value: Double) -> Double {
+    let fraction = value - floor(value)
+    return fraction > 0.5 ? ceil(value) : floor(value)
+}
 
 struct TipOutView: View {
     @Environment(ShiftStore.self) private var store
@@ -10,26 +16,17 @@ struct TipOutView: View {
 
     var overrideTotal: Double? = nil
 
-    @State private var bouncerExpanded = false
+    @State private var expandedRole: String? = nil
 
     private var total: Double { overrideTotal ?? store.currentShift.totalEarnings }
 
-    private struct FixedRecipient {
-        let role: String
-        let icon: String
-        let rate: Double
-        let gradient: LinearGradient
-    }
+    private var managerAmount: Double { roundTipOut(total * store.managerRate) }
+    private var djAmount:      Double { roundTipOut(total * store.djRate) }
+    private var bouncerAmount: Double { roundTipOut(total * store.bouncerRate) }
+    private var totalTipOut:   Double { managerAmount + djAmount + bouncerAmount }
+    private var takeHome:      Double { max(0, total - totalTipOut) }
 
-    private let fixedRecipients: [FixedRecipient] = [
-        FixedRecipient(role: "Manager", icon: "person.badge.shield.checkmark", rate: 0.10, gradient: AppTheme.primaryGradient),
-        FixedRecipient(role: "DJ",      icon: "music.note",                    rate: 0.10, gradient: AppTheme.blueGradient),
-    ]
-
-    private var totalTipOut: Double {
-        fixedRecipients.reduce(0) { $0 + total * $1.rate } + total * store.bouncerRate
-    }
-    private var takeHome: Double { total - totalTipOut }
+    private let presets: [Double] = [0, 0.03, 0.05, 0.08, 0.10, 0.15, 0.20]
 
     var body: some View {
         NavigationStack {
@@ -56,32 +53,60 @@ struct TipOutView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 18))
                         .overlay(
                             RoundedRectangle(cornerRadius: 18)
-                                .strokeBorder(AppTheme.borderGlow, lineWidth: 1)
+                                .strokeBorder(AppTheme.borderGlow, lineWidth: 3)
                         )
 
                         // ── Tip out rows ──────────────────────────────────
-                        SectionHeader(title: "Tip Out")
+                        SectionHeader(title: "Tip Out  —  tap to edit %")
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         VStack(spacing: 10) {
-                            // Fixed rows
-                            ForEach(fixedRecipients, id: \.role) { r in
-                                TipOutRow(
-                                    role:     r.role,
-                                    icon:     r.icon,
-                                    rate:     r.rate,
-                                    amount:   total * r.rate,
-                                    gradient: r.gradient
-                                )
+                            EditableRateRow(
+                                role:        "Manager",
+                                icon:        "person.badge.shield.checkmark",
+                                rate:        store.managerRate,
+                                amount:      managerAmount,
+                                gradient:    AppTheme.primaryGradient,
+                                accentColor: AppTheme.neonPink,
+                                presets:     presets,
+                                isExpanded:  expandedRole == "Manager"
+                            ) {
+                                toggle("Manager")
+                            } onSelect: { rate in
+                                store.updateManagerRate(rate)
+                                expandedRole = nil
                             }
 
-                            // Bouncer — editable
-                            BouncerRow(
+                            EditableRateRow(
+                                role:        "DJ",
+                                icon:        "music.note",
+                                rate:        store.djRate,
+                                amount:      djAmount,
+                                gradient:    AppTheme.blueGradient,
+                                accentColor: AppTheme.neonBlue,
+                                presets:     presets,
+                                isExpanded:  expandedRole == "DJ"
+                            ) {
+                                toggle("DJ")
+                            } onSelect: { rate in
+                                store.updateDJRate(rate)
+                                expandedRole = nil
+                            }
+
+                            EditableRateRow(
+                                role:        "Bouncer / Doorman",
+                                icon:        "figure.stand",
                                 rate:        store.bouncerRate,
-                                amount:      total * store.bouncerRate,
-                                isExpanded:  $bouncerExpanded
-                            ) { newRate in
-                                store.updateBouncerRate(newRate)
+                                amount:      bouncerAmount,
+                                gradient:    AppTheme.tealGradient,
+                                accentColor: AppTheme.neonViolet,
+                                presets:     presets,
+                                isExpanded:  expandedRole == "Bouncer / Doorman"
+                            ) {
+                                toggle("Bouncer / Doorman")
+                            } onSelect: { rate in
+                                store.updateBouncerRate(rate)
+                                expandedRole = nil
                             }
                         }
 
@@ -90,7 +115,6 @@ struct TipOutView: View {
                             Rectangle()
                                 .fill(AppTheme.borderGlow)
                                 .frame(height: 1)
-                                .padding(.horizontal, 4)
 
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
@@ -113,7 +137,7 @@ struct TipOutView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .strokeBorder(AppTheme.neonPink.opacity(0.30), lineWidth: 1)
+                                    .strokeBorder(AppTheme.neonPink.opacity(0.30), lineWidth: 3)
                             )
                         }
 
@@ -145,7 +169,7 @@ struct TipOutView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 20))
                         .overlay(
                             RoundedRectangle(cornerRadius: 20)
-                                .strokeBorder(AppTheme.neonPurple.opacity(0.50), lineWidth: 1.2)
+                                .strokeBorder(AppTheme.neonPurple.opacity(0.50), lineWidth: 3.2)
                         )
                         .shadow(color: AppTheme.neonPurple.opacity(0.20), radius: 16, y: 6)
 
@@ -170,95 +194,56 @@ struct TipOutView: View {
         .presentationDetents([.large])
         .presentationBackground(AppTheme.sheetBg)
     }
-}
 
-// MARK: - TipOutRow (fixed)
-
-private struct TipOutRow: View {
-    let role:     String
-    let icon:     String
-    let rate:     Double
-    let amount:   Double
-    let gradient: LinearGradient
-
-    var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(gradient)
-                .frame(width: 44, height: 44)
-                .background(AppTheme.cardBgElevated)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .strokeBorder(gradient.opacity(0.45), lineWidth: 1)
-                )
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(role)
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.textPrimary)
-                Text("\(Int(rate * 100))% of total")
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.textTertiary)
-            }
-
-            Spacer()
-
-            Text(amount, format: .currency(code: "USD"))
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundStyle(AppTheme.textPrimary)
+    private func toggle(_ role: String) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        withAnimation(.spring(duration: 0.3)) {
+            expandedRole = expandedRole == role ? nil : role
         }
-        .padding(14)
-        .background(AppTheme.cardBg)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(AppTheme.borderSubtle, lineWidth: 1)
-        )
     }
 }
 
-// MARK: - BouncerRow (editable)
+// MARK: - EditableRateRow
 
-private struct BouncerRow: View {
-    let rate:       Double
-    let amount:     Double
-    @Binding var isExpanded: Bool
-    let onSelect:   (Double) -> Void
-
-    private let presets: [Double] = [0, 0.03, 0.05, 0.08, 0.10, 0.15]
+private struct EditableRateRow: View {
+    let role:        String
+    let icon:        String
+    let rate:        Double
+    let amount:      Double
+    let gradient:    LinearGradient
+    let accentColor: Color
+    let presets:     [Double]
+    let isExpanded:  Bool
+    let onTap:       () -> Void
+    let onSelect:    (Double) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
             // Main row
-            Button { 
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                withAnimation(.spring(duration: 0.3)) { isExpanded.toggle() }
-            } label: {
+            Button(action: onTap) {
                 HStack(spacing: 14) {
-                    Image(systemName: "figure.stand")
+                    Image(systemName: icon)
                         .font(.title3)
-                        .foregroundStyle(AppTheme.tealGradient)
+                        .foregroundStyle(gradient)
                         .frame(width: 44, height: 44)
                         .background(AppTheme.cardBgElevated)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(AppTheme.tealGradient.opacity(0.45), lineWidth: 1)
+                                .strokeBorder(gradient.opacity(0.45), lineWidth: 3)
                         )
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Bouncer / Doorman")
+                        Text(role)
                             .font(.headline)
                             .foregroundStyle(AppTheme.textPrimary)
                         HStack(spacing: 4) {
-                            Text("\(Int(rate * 100))% of total")
+                            Text(rate == 0 ? "Not tipping" : "\(Int(rate * 100))% of total")
                                 .font(.caption)
                                 .foregroundStyle(AppTheme.textTertiary)
                             Image(systemName: "pencil")
                                 .font(.caption2)
-                                .foregroundStyle(AppTheme.neonViolet.opacity(0.7))
+                                .foregroundStyle(accentColor.opacity(0.65))
                         }
                     }
 
@@ -278,7 +263,7 @@ private struct BouncerRow: View {
             }
             .buttonStyle(.plain)
 
-            // Expanded preset chips
+            // Preset chips
             if isExpanded {
                 VStack(spacing: 12) {
                     Rectangle()
@@ -286,12 +271,11 @@ private struct BouncerRow: View {
                         .frame(height: 1)
                         .padding(.horizontal, 14)
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         ForEach(presets, id: \.self) { preset in
                             Button {
                                 UISelectionFeedbackGenerator().selectionChanged()
                                 onSelect(preset)
-                                withAnimation(.spring(duration: 0.2)) { isExpanded = false }
                             } label: {
                                 Text(preset == 0 ? "None" : "\(Int(preset * 100))%")
                                     .font(.subheadline.weight(.semibold))
@@ -299,19 +283,19 @@ private struct BouncerRow: View {
                                     .padding(.vertical, 10)
                                     .background(
                                         rate == preset
-                                            ? AppTheme.neonViolet.opacity(0.22)
+                                            ? accentColor.opacity(0.22)
                                             : AppTheme.cardBgElevated
                                     )
                                     .foregroundStyle(
-                                        rate == preset ? AppTheme.neonViolet : AppTheme.textSecondary
+                                        rate == preset ? accentColor : AppTheme.textSecondary
                                     )
                                     .clipShape(Capsule())
                                     .overlay(
                                         Capsule().strokeBorder(
                                             rate == preset
-                                                ? AppTheme.neonViolet.opacity(0.55)
+                                                ? accentColor.opacity(0.55)
                                                 : AppTheme.borderSubtle,
-                                            lineWidth: 1.2
+                                            lineWidth: 3.2
                                         )
                                     )
                             }
@@ -329,8 +313,8 @@ private struct BouncerRow: View {
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(
-                    isExpanded ? AppTheme.neonViolet.opacity(0.45) : AppTheme.borderSubtle,
-                    lineWidth: 1
+                    isExpanded ? accentColor.opacity(0.40) : AppTheme.borderSubtle,
+                    lineWidth: 3
                 )
         )
         .animation(.spring(duration: 0.3), value: isExpanded)

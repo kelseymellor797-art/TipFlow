@@ -85,7 +85,7 @@ struct NeonCardModifier: ViewModifier {
             .clipShape(RoundedRectangle(cornerRadius: 18))
             .overlay(
                 RoundedRectangle(cornerRadius: 18)
-                    .strokeBorder(glowColor, lineWidth: 1)
+                    .strokeBorder(glowColor, lineWidth: 3)
             )
     }
 }
