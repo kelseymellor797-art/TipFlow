@@ -21,11 +21,11 @@ enum InteractionOutcome: String, Codable, CaseIterable {
 
     var emoji: String {
         switch self {
-        case .noSale:         return "🚫"
-        case .tipOnly:        return "💵"
-        case .oneDance:       return "💃"
-        case .multipleDances: return "✨"
-        case .vipRoom:        return "👑"
+        case .noSale:         return "—"
+        case .tipOnly:        return "$"
+        case .oneDance:       return "1x"
+        case .multipleDances: return "2x+"
+        case .vipRoom:        return "VIP"
         }
     }
 

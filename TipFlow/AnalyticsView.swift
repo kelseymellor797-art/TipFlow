@@ -11,12 +11,11 @@ struct AnalyticsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                AppTheme.background.ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
 
-                        // ── Current shift ─────────────────────────────────
                         sectionLabel("Current Shift")
 
                         LazyVGrid(
@@ -24,46 +23,43 @@ struct AnalyticsView: View {
                             spacing: 12
                         ) {
                             StatCard(
-                                title: "Total Earnings",
-                                value: shift.totalEarnings.formatted(.currency(code: "USD")),
-                                icon: "dollarsign.circle.fill",
-                                color: .pink
+                                title:    "Total Earnings",
+                                value:    shift.totalEarnings.formatted(.currency(code: "USD")),
+                                icon:     "dollarsign.circle.fill",
+                                gradient: AppTheme.primaryGradient
                             )
                             StatCard(
-                                title: "Per Hour",
-                                value: shift.earningsPerHour > 0
+                                title:    "Per Hour",
+                                value:    shift.earningsPerHour > 0
                                     ? shift.earningsPerHour.formatted(.currency(code: "USD"))
-                                    : "—",
-                                icon: "clock.fill",
-                                color: .orange
+                                    : "--",
+                                icon:     "clock.fill",
+                                gradient: AppTheme.blueGradient
                             )
                             StatCard(
-                                title: "Interactions",
-                                value: "\(shift.interactions.count)",
-                                icon: "person.2.fill",
-                                color: .blue
+                                title:    "Interactions",
+                                value:    "\(shift.interactions.count)",
+                                icon:     "person.2.fill",
+                                gradient: AppTheme.blueGradient
                             )
                             StatCard(
-                                title: "Conversion",
-                                value: shift.completedInteractions.isEmpty
-                                    ? "—"
+                                title:    "Conversion",
+                                value:    shift.completedInteractions.isEmpty
+                                    ? "--"
                                     : "\(Int(shift.conversionRate * 100))%",
-                                icon: "arrow.up.right.circle.fill",
-                                color: .green
+                                icon:     "arrow.up.right.circle.fill",
+                                gradient: AppTheme.tealGradient
                             )
                         }
 
-                        // ── Average interaction duration ──────────────────
                         if !shift.completedInteractions.isEmpty {
                             AvgDurationCard(duration: shift.averageInteractionDuration)
                         }
 
-                        // ── Earnings breakdown chart ───────────────────────
                         if shift.totalEarnings > 0 {
                             EarningsBreakdownChart(shift: shift)
                         }
 
-                        // ── Past shifts history ───────────────────────────
                         if !store.pastShifts.isEmpty {
                             VStack(spacing: 12) {
                                 sectionLabel("Past Shifts")
@@ -73,7 +69,6 @@ struct AnalyticsView: View {
                             }
                         }
 
-                        // Empty state
                         if shift.totalEarnings == 0 && store.pastShifts.isEmpty {
                             emptyState
                         }
@@ -84,11 +79,12 @@ struct AnalyticsView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(AppTheme.background, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text("Analytics")
                         .font(.headline.bold())
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.textPrimary)
                 }
             }
         }
@@ -104,13 +100,13 @@ struct AnalyticsView: View {
         VStack(spacing: 14) {
             Image(systemName: "chart.bar.xaxis")
                 .font(.system(size: 52))
-                .foregroundStyle(.white.opacity(0.15))
+                .foregroundStyle(AppTheme.textTertiary)
             Text("No data yet")
                 .font(.headline)
-                .foregroundStyle(.white.opacity(0.35))
+                .foregroundStyle(AppTheme.textSecondary)
             Text("Start logging earnings on the Dashboard\nto see your analytics here.")
                 .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.25))
+                .foregroundStyle(AppTheme.textTertiary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -135,22 +131,21 @@ private struct AvgDurationCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Avg Interaction Length")
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.55))
+                    .foregroundStyle(AppTheme.textSecondary)
                 Text(formatted)
                     .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.textPrimary)
                 Text("before conversion")
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.35))
+                    .foregroundStyle(AppTheme.textTertiary)
             }
             Spacer()
             Image(systemName: "timer")
                 .font(.system(size: 38))
-                .foregroundStyle(.purple.opacity(0.55))
+                .foregroundStyle(AppTheme.blueGradient)
         }
         .padding(18)
-        .background(Color(white: 0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .neonCard(glow: AppTheme.neonBlue.opacity(0.30))
     }
 }
 
@@ -162,14 +157,14 @@ private struct EarningsBreakdownChart: View {
     private struct Segment {
         let label: String
         let amount: Double
-        let color: Color
+        let gradient: LinearGradient
     }
 
     private var segments: [Segment] {
         [
-            Segment(label: "Lap Dances",  amount: shift.lapDanceTotal,  color: .pink),
-            Segment(label: "Stage Tips",  amount: shift.stageTipTotal,  color: .purple),
-            Segment(label: "Random Tips", amount: shift.randomTipTotal, color: .teal),
+            Segment(label: "Lap Dances",  amount: shift.lapDanceTotal,  gradient: AppTheme.primaryGradient),
+            Segment(label: "Stage Tips",  amount: shift.stageTipTotal,  gradient: AppTheme.blueGradient),
+            Segment(label: "Random Tips", amount: shift.randomTipTotal, gradient: AppTheme.tealGradient),
         ].filter { $0.amount > 0 }
     }
 
@@ -180,25 +175,25 @@ private struct EarningsBreakdownChart: View {
             ForEach(segments, id: \.label) { seg in
                 VStack(spacing: 6) {
                     HStack {
-                        Circle()
-                            .fill(seg.color)
-                            .frame(width: 8, height: 8)
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(seg.gradient)
+                            .frame(width: 10, height: 10)
                         Text(seg.label)
                             .font(.subheadline)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.textPrimary)
                         Spacer()
                         Text(seg.amount, format: .currency(code: "USD"))
                             .font(.subheadline.bold())
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.textPrimary)
                     }
 
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             Capsule()
-                                .fill(Color.white.opacity(0.07))
+                                .fill(Color.white.opacity(0.06))
                                 .frame(height: 8)
                             Capsule()
-                                .fill(seg.color)
+                                .fill(seg.gradient)
                                 .frame(
                                     width: shift.totalEarnings > 0
                                         ? geo.size.width * CGFloat(seg.amount / shift.totalEarnings)
@@ -206,6 +201,7 @@ private struct EarningsBreakdownChart: View {
                                     height: 8
                                 )
                                 .animation(.spring(duration: 0.6, bounce: 0.1), value: seg.amount)
+                                .shadow(color: AppTheme.neonPink.opacity(0.3), radius: 4, y: 2)
                         }
                     }
                     .frame(height: 8)
@@ -213,8 +209,7 @@ private struct EarningsBreakdownChart: View {
             }
         }
         .padding(18)
-        .background(Color(white: 0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .neonCard()
     }
 }
 
@@ -228,7 +223,7 @@ private struct PastShiftRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(record.date, style: .date)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.textPrimary)
 
                 HStack(spacing: 14) {
                     Label(
@@ -236,14 +231,14 @@ private struct PastShiftRow: View {
                         systemImage: "person.2"
                     )
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.45))
+                    .foregroundStyle(AppTheme.textTertiary)
 
                     Label(
                         "\(Int(record.conversionRate * 100))% conv.",
                         systemImage: "arrow.up.right"
                     )
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.45))
+                    .foregroundStyle(AppTheme.textTertiary)
 
                     if record.durationHours > 0 {
                         Label(
@@ -251,22 +246,19 @@ private struct PastShiftRow: View {
                             systemImage: "clock"
                         )
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.45))
+                        .foregroundStyle(AppTheme.textTertiary)
                     }
                 }
             }
             Spacer()
             Text(record.totalEarnings, format: .currency(code: "USD"))
                 .font(.headline.bold())
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.textPrimary)
         }
         .padding(14)
-        .background(Color(white: 0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .neonCard(glow: AppTheme.borderSubtle)
     }
 }
-
-// MARK: - Preview
 
 #Preview {
     AnalyticsView()

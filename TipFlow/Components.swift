@@ -1,5 +1,5 @@
 // Components.swift — TipFlow
-// Shared, reusable UI components used across Dashboard and Analytics.
+// Shared, reusable UI components — synthwave neon theme.
 
 import SwiftUI
 import UIKit
@@ -13,35 +13,37 @@ struct TotalEarningsCard: View {
     private var isGoalMet: Bool { amount >= goal }
 
     var body: some View {
-        VStack(spacing: 6) {
-            Text(isGoalMet ? "🎉 Goal Reached!" : "Tonight's Total")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.white.opacity(0.55))
+        VStack(spacing: 8) {
+            Text(isGoalMet ? "Goal Reached!" : "Tonight's Total")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(isGoalMet ? Color(red:1,green:0.85,blue:0.2) : AppTheme.textSecondary)
 
             Text(amount, format: .currency(code: "USD"))
-                .font(.system(size: 56, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .font(.system(size: 58, weight: .bold, design: .rounded))
+                .foregroundStyle(AppTheme.textPrimary)
                 .contentTransition(.numericText(value: amount))
                 .animation(.spring(duration: 0.4), value: amount)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
+        .padding(.vertical, 30)
         .background(
-            RoundedRectangle(cornerRadius: 22)
-                .fill(
-                    LinearGradient(
-                        colors: isGoalMet
-                            ? [Color(white: 0.18), Color(white: 0.13)]
-                            : [Color(white: 0.15), Color(white: 0.10)],
-                        startPoint: .top, endPoint: .bottom
-                    )
+            ZStack {
+                AppTheme.cardBgElevated
+                // Subtle radial glow behind the number
+                RadialGradient(
+                    colors: [AppTheme.neonPurple.opacity(0.22), .clear],
+                    center: .center, startRadius: 10, endRadius: 160
                 )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22)
-                        .strokeBorder(
-                            isGoalMet ? Color.yellow.opacity(0.4) : Color.white.opacity(0.06),
-                            lineWidth: 1
-                        )
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22)
+                .strokeBorder(
+                    isGoalMet
+                        ? Color(red:1,green:0.80,blue:0.2).opacity(0.45)
+                        : AppTheme.borderGlow,
+                    lineWidth: 1.2
                 )
         )
     }
@@ -52,32 +54,31 @@ struct TotalEarningsCard: View {
 struct BreakdownCard: View {
     let title: String
     let amount: Double
-    let color: Color
+    let gradient: LinearGradient
     let icon: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Image(systemName: icon)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(color)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(gradient)
 
             Text(amount, format: .currency(code: "USD"))
                 .font(.system(size: 17, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.textPrimary)
                 .contentTransition(.numericText(value: amount))
                 .animation(.spring(duration: 0.3), value: amount)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.65)
                 .lineLimit(1)
 
             Text(title)
                 .font(.caption2)
-                .foregroundStyle(.white.opacity(0.45))
+                .foregroundStyle(AppTheme.textTertiary)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(Color(white: 0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .neonCard()
     }
 }
 
@@ -96,26 +97,26 @@ struct GoalProgressBar: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text(isComplete ? "Goal Reached 🎉" : "Nightly Goal")
+                Text(isComplete ? "Goal Reached" : "Nightly Goal")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(isComplete ? Color.yellow : .white.opacity(0.65))
+                    .foregroundStyle(isComplete ? Color(red:1,green:0.85,blue:0.2) : AppTheme.textSecondary)
                 Spacer()
                 if !isComplete {
                     Text(remaining, format: .currency(code: "USD"))
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(AppTheme.textTertiary)
                     Text("to go")
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.35))
+                        .foregroundStyle(AppTheme.textTertiary.opacity(0.6))
                 }
                 Text("\(percentage)%")
                     .font(.subheadline.bold())
-                    .foregroundStyle(isComplete ? .yellow : .white)
+                    .foregroundStyle(isComplete ? Color(red:1,green:0.85,blue:0.2) : AppTheme.textPrimary)
                 if let onEdit {
                     Button(action: onEdit) {
                         Image(systemName: "pencil.circle")
                             .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.35))
+                            .foregroundStyle(AppTheme.textTertiary)
                     }
                     .buttonStyle(.plain)
                     .padding(.leading, 4)
@@ -125,24 +126,20 @@ struct GoalProgressBar: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color.white.opacity(0.08))
+                        .fill(Color.white.opacity(0.06))
                         .frame(height: 10)
                     Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: isComplete ? [.yellow, .orange] : [.pink, .purple],
-                                startPoint: .leading, endPoint: .trailing
-                            )
-                        )
+                        .fill(isComplete ? AppTheme.goldGradient : AppTheme.progressGradient)
                         .frame(width: geo.size.width * CGFloat(progress), height: 10)
-                        .animation(.spring(duration: 0.6, bounce: 0.2), value: progress)
+                        .animation(.spring(duration: 0.7, bounce: 0.2), value: progress)
+                        // Glow under the bar
+                        .shadow(color: AppTheme.neonPink.opacity(0.55), radius: 6, y: 2)
                 }
             }
             .frame(height: 10)
         }
         .padding(16)
-        .background(Color(white: 0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .neonCard()
     }
 }
 
@@ -151,7 +148,7 @@ struct GoalProgressBar: View {
 struct QuickInputButton: View {
     let label: String
     let sublabel: String
-    let color: Color
+    let gradient: LinearGradient
     let action: () -> Void
 
     var body: some View {
@@ -162,18 +159,23 @@ struct QuickInputButton: View {
             VStack(spacing: 5) {
                 Text(label)
                     .font(.title2.bold())
+                    .foregroundStyle(AppTheme.textPrimary)
                 Text(sublabel)
                     .font(.caption)
-                    .opacity(0.72)
+                    .foregroundStyle(AppTheme.textSecondary)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 72)
-            .background(color.opacity(0.18))
-            .foregroundStyle(.white)
+            .background(
+                ZStack {
+                    AppTheme.cardBg
+                    gradient.opacity(0.18)
+                }
+            )
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(color.opacity(0.45), lineWidth: 1.5)
+                    .strokeBorder(gradient.opacity(0.55), lineWidth: 1.5)
             )
         }
         .buttonStyle(ScaleButtonStyle())
@@ -207,40 +209,43 @@ struct ActiveInteractionCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Label("Interaction Active", systemImage: "person.fill.checkmark")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.55))
+                    .foregroundStyle(AppTheme.textSecondary)
 
                 Text(formattedTime)
-                    .font(.system(size: 38, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 40, weight: .bold, design: .monospaced))
+                    .foregroundStyle(AppTheme.textPrimary)
                     .contentTransition(.numericText(value: elapsed))
                     .animation(.linear(duration: 0.2), value: elapsed)
             }
-
             Spacer()
-
             Button(action: onEnd) {
                 Text("End")
                     .font(.headline)
                     .padding(.horizontal, 26)
                     .padding(.vertical, 14)
-                    .background(Color.pink)
+                    .background(AppTheme.primaryGradient)
                     .foregroundStyle(.white)
                     .clipShape(Capsule())
+                    .shadow(color: AppTheme.neonPink.opacity(0.5), radius: 8, y: 3)
             }
             .buttonStyle(ScaleButtonStyle())
         }
         .padding(18)
         .background(
-            LinearGradient(
-                colors: [Color.purple.opacity(0.28), Color.pink.opacity(0.18)],
-                startPoint: .leading, endPoint: .trailing
-            )
+            ZStack {
+                AppTheme.cardBgElevated
+                LinearGradient(
+                    colors: [AppTheme.neonPurple.opacity(0.20), AppTheme.neonPink.opacity(0.10)],
+                    startPoint: .leading, endPoint: .trailing
+                )
+            }
         )
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(
             RoundedRectangle(cornerRadius: 18)
-                .strokeBorder(Color.purple.opacity(0.4), lineWidth: 1)
+                .strokeBorder(AppTheme.neonPurple.opacity(0.45), lineWidth: 1.2)
         )
+        .shadow(color: AppTheme.neonPurple.opacity(0.2), radius: 12, y: 4)
     }
 }
 
@@ -255,14 +260,10 @@ struct StartInteractionButton: View {
                 .font(.headline)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
-                .background(
-                    LinearGradient(
-                        colors: [.purple, .pink],
-                        startPoint: .leading, endPoint: .trailing
-                    )
-                )
+                .background(AppTheme.primaryGradient)
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: AppTheme.neonPink.opacity(0.4), radius: 10, y: 4)
         }
         .buttonStyle(ScaleButtonStyle())
     }
@@ -275,10 +276,10 @@ struct SectionHeader: View {
 
     var body: some View {
         Text(title)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.white.opacity(0.4))
+            .font(.caption.weight(.bold))
+            .foregroundStyle(AppTheme.neonPurple.opacity(0.85))
             .textCase(.uppercase)
-            .kerning(1.2)
+            .kerning(1.5)
     }
 }
 
@@ -288,27 +289,26 @@ struct StatCard: View {
     let title: String
     let value: String
     let icon: String
-    let color: Color
+    let gradient: LinearGradient
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundStyle(color)
+                .foregroundStyle(gradient)
 
             Text(value)
                 .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.textPrimary)
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
 
             Text(title)
                 .font(.caption)
-                .foregroundStyle(.white.opacity(0.45))
+                .foregroundStyle(AppTheme.textTertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(Color(white: 0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .neonCard()
     }
 }

@@ -1,5 +1,5 @@
 // Sheets.swift — TipFlow
-// Modal sheets and the one-minute prompt overlay.
+// Modal sheets and the 5-minute prompt overlay — synthwave neon theme.
 
 import SwiftUI
 import UIKit
@@ -13,41 +13,46 @@ struct OneMinutePromptOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.72)
+            Color.black.opacity(0.80)
                 .ignoresSafeArea()
                 .onTapGesture { store.dismissOneMinutePrompt() }
 
-            VStack(spacing: 22) {
-                // Icon + headline
-                VStack(spacing: 10) {
+            VStack(spacing: 24) {
+                VStack(spacing: 12) {
                     Image(systemName: "clock.badge.exclamationmark.fill")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.yellow)
+                        .font(.system(size: 52))
+                        .foregroundStyle(AppTheme.primaryGradient)
                         .symbolEffect(.pulse)
 
                     Text("Interaction at \(minutesElapsed) Minute\(minutesElapsed == 1 ? "" : "s")")
                         .font(.title3.bold())
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.textPrimary)
 
                     Text("What would you like to do?")
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.55))
+                        .foregroundStyle(AppTheme.textSecondary)
                 }
 
-                // Action buttons
                 VStack(spacing: 10) {
                     HStack(spacing: 10) {
-                        PromptOptionButton(label: "+2 Minutes", icon: "plus.circle", color: .blue) {
+                        PromptOptionButton(label: "+2 Minutes", icon: "plus.circle",
+                                           gradient: AppTheme.blueGradient, baseColor: AppTheme.neonBlue) {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             store.extendInteraction(by: 2)
                         }
-                        PromptOptionButton(label: "+5 Minutes", icon: "plus.circle.fill", color: .blue) {
+                        PromptOptionButton(label: "+5 Minutes", icon: "plus.circle.fill",
+                                           gradient: AppTheme.blueGradient, baseColor: AppTheme.neonBlue) {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             store.extendInteraction(by: 5)
                         }
                     }
 
-                    PromptOptionButton(label: "Convert to Dance  💃", icon: "sparkles", color: .pink) {
+                    PromptOptionButton(
+                        label: "Convert to Dance",
+                        icon: "sparkles",
+                        gradient: AppTheme.primaryGradient,
+                        baseColor: AppTheme.neonPink
+                    ) {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         store.endInteraction(outcome: .oneDance, amount: 20)
                     }
@@ -59,20 +64,27 @@ struct OneMinutePromptOverlay: View {
                     } label: {
                         Text("End Interaction")
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.45))
+                            .foregroundStyle(AppTheme.textTertiary)
                             .padding(.top, 4)
                     }
                 }
             }
             .padding(26)
             .background(
-                RoundedRectangle(cornerRadius: 26)
-                    .fill(Color(white: 0.11))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 26)
-                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                ZStack {
+                    AppTheme.cardBgElevated
+                    RadialGradient(
+                        colors: [AppTheme.neonPurple.opacity(0.18), .clear],
+                        center: .center, startRadius: 10, endRadius: 200
                     )
+                }
             )
+            .clipShape(RoundedRectangle(cornerRadius: 26))
+            .overlay(
+                RoundedRectangle(cornerRadius: 26)
+                    .strokeBorder(AppTheme.borderGlow, lineWidth: 1.2)
+            )
+            .shadow(color: AppTheme.neonPurple.opacity(0.25), radius: 24, y: 8)
             .padding(.horizontal, 24)
         }
         .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .center)))
@@ -84,23 +96,26 @@ struct OneMinutePromptOverlay: View {
 struct PromptOptionButton: View {
     let label: String
     let icon: String
-    let color: Color
+    let gradient: LinearGradient
+    let baseColor: Color
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: icon)
-                Text(label).fontWeight(.semibold)
+                    .foregroundStyle(gradient)
+                Text(label)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(AppTheme.textPrimary)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 15)
-            .background(color.opacity(0.18))
-            .foregroundStyle(color)
+            .background(baseColor.opacity(0.14))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(color.opacity(0.35), lineWidth: 1)
+                    .strokeBorder(baseColor.opacity(0.40), lineWidth: 1.2)
             )
         }
         .buttonStyle(ScaleButtonStyle())
@@ -128,32 +143,33 @@ struct EndInteractionSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                AppTheme.sheetBg.ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 24) {
-
                         // Duration summary
                         VStack(spacing: 4) {
                             Text("Duration")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.45))
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(AppTheme.textTertiary)
                                 .textCase(.uppercase)
-                                .kerning(1)
-
+                                .kerning(1.2)
                             Text(formattedElapsed)
-                                .font(.system(size: 44, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.white)
+                                .font(.system(size: 46, weight: .bold, design: .monospaced))
+                                .foregroundStyle(AppTheme.textPrimary)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
-                        .background(Color(white: 0.10))
+                        .padding(.vertical, 22)
+                        .background(AppTheme.cardBgElevated)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .strokeBorder(AppTheme.borderGlow, lineWidth: 1)
+                        )
 
                         // Outcome picker
                         VStack(alignment: .leading, spacing: 10) {
                             SectionHeader(title: "Outcome")
-
                             VStack(spacing: 8) {
                                 ForEach(InteractionOutcome.allCases, id: \.self) { outcome in
                                     OutcomeRow(outcome: outcome, isSelected: selectedOutcome == outcome) {
@@ -171,22 +187,24 @@ struct EndInteractionSheet: View {
                         if showAmountField {
                             VStack(alignment: .leading, spacing: 10) {
                                 SectionHeader(title: "Amount Earned")
-
                                 HStack(spacing: 8) {
                                     Text("$")
                                         .font(.title.bold())
-                                        .foregroundStyle(.white.opacity(0.5))
-
+                                        .foregroundStyle(AppTheme.textTertiary)
                                     TextField("0", text: $amountText)
                                         .font(.system(size: 34, weight: .bold, design: .rounded))
                                         .keyboardType(.decimalPad)
-                                        .foregroundStyle(.white)
-                                        .tint(.pink)
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                        .tint(AppTheme.neonPink)
                                         .focused($amountFocused)
                                 }
                                 .padding(16)
-                                .background(Color.white.opacity(0.07))
+                                .background(AppTheme.cardBgElevated)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .strokeBorder(AppTheme.neonPink.opacity(0.40), lineWidth: 1.2)
+                                )
                             }
                             .transition(.opacity.combined(with: .move(edge: .top)))
                             .onAppear { amountFocused = true }
@@ -201,40 +219,38 @@ struct EndInteractionSheet: View {
             }
             .navigationTitle("End Interaction")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(AppTheme.sheetBg, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
-                        .foregroundStyle(.white.opacity(0.55))
+                        .foregroundStyle(AppTheme.textSecondary)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { commit() }
                         .font(.headline)
-                        .foregroundStyle(.pink)
+                        .foregroundStyle(AppTheme.neonPink)
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                confirmButton
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
-                    .background(.ultraThinMaterial)
+                Button(action: commit) {
+                    Text("End Interaction")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(AppTheme.primaryGradient)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: AppTheme.neonPink.opacity(0.35), radius: 10, y: 4)
+                }
+                .buttonStyle(ScaleButtonStyle())
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+                .background(AppTheme.sheetBg)
             }
         }
         .presentationDetents([.medium, .large])
-        .presentationBackground(.black)
+        .presentationBackground(AppTheme.sheetBg)
         .animation(.easeInOut(duration: 0.2), value: showAmountField)
-    }
-
-    private var confirmButton: some View {
-        Button(action: commit) {
-            Text("End Interaction")
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 18)
-                .background(Color.pink)
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-        }
-        .buttonStyle(ScaleButtonStyle())
     }
 
     private func commit() {
@@ -258,19 +274,22 @@ struct OutcomeRow: View {
                     .font(.title3)
                 Text(outcome.rawValue)
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.textPrimary)
                 Spacer()
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isSelected ? .pink : .white.opacity(0.25))
+                    .foregroundStyle(isSelected ? AppTheme.neonPink : AppTheme.textTertiary)
                     .font(.title3)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(isSelected ? Color.pink.opacity(0.18) : Color.white.opacity(0.06))
+            .background(isSelected ? AppTheme.neonPink.opacity(0.14) : AppTheme.cardBg)
             .clipShape(RoundedRectangle(cornerRadius: 13))
             .overlay(
                 RoundedRectangle(cornerRadius: 13)
-                    .strokeBorder(isSelected ? Color.pink.opacity(0.5) : Color.clear, lineWidth: 1.5)
+                    .strokeBorder(
+                        isSelected ? AppTheme.neonPink.opacity(0.55) : AppTheme.borderSubtle,
+                        lineWidth: 1.2
+                    )
             )
         }
         .buttonStyle(.plain)
@@ -292,32 +311,30 @@ struct CustomAmountSheet: View {
 
     private var parsedAmount: Double? { Double(amountText) }
     private var isValid: Bool { (parsedAmount ?? 0) > 0 }
+    private var accentColor: Color { AppTheme.color(for: selectedType) }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                AppTheme.sheetBg.ignoresSafeArea()
 
                 VStack(spacing: 32) {
                     // Large amount display
-                    VStack(spacing: 2) {
-                        HStack(alignment: .center, spacing: 4) {
-                            Text("$")
-                                .font(.system(size: 44, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.35))
-                                .padding(.top, 6)
-
-                            Text(amountText.isEmpty ? "0" : amountText)
-                                .font(.system(size: 72, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .contentTransition(.numericText())
-                                .animation(.spring(duration: 0.2), value: amountText)
-                        }
+                    HStack(alignment: .center, spacing: 4) {
+                        Text("$")
+                            .font(.system(size: 44, weight: .bold))
+                            .foregroundStyle(AppTheme.textTertiary)
+                            .padding(.top, 6)
+                        Text(amountText.isEmpty ? "0" : amountText)
+                            .font(.system(size: 72, weight: .bold, design: .rounded))
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .contentTransition(.numericText())
+                            .animation(.spring(duration: 0.2), value: amountText)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, 16)
 
-                    // Hidden field drives the keyboard
+                    // Hidden field drives keyboard
                     TextField("", text: $amountText)
                         .keyboardType(.decimalPad)
                         .focused($isFocused)
@@ -331,7 +348,6 @@ struct CustomAmountSheet: View {
                     // Category chips
                     VStack(alignment: .leading, spacing: 12) {
                         SectionHeader(title: "Category")
-
                         HStack(spacing: 8) {
                             ForEach(EarningsType.allCases, id: \.self) { type in
                                 CategoryChip(type: type, isSelected: selectedType == type) {
@@ -349,10 +365,11 @@ struct CustomAmountSheet: View {
             }
             .navigationTitle("Custom Amount")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(AppTheme.sheetBg, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
-                        .foregroundStyle(.white.opacity(0.55))
+                        .foregroundStyle(AppTheme.textSecondary)
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -368,19 +385,20 @@ struct CustomAmountSheet: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
-                        .background(isValid ? Color.pink : Color.white.opacity(0.15))
+                        .background(isValid ? AppTheme.primaryGradient.opacity(1) : LinearGradient(colors: [AppTheme.cardBgElevated], startPoint: .leading, endPoint: .trailing))
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: isValid ? AppTheme.neonPink.opacity(0.35) : .clear, radius: 10, y: 4)
                 }
                 .buttonStyle(ScaleButtonStyle())
                 .disabled(!isValid)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
-                .background(.ultraThinMaterial)
+                .background(AppTheme.sheetBg)
             }
         }
         .presentationDetents([.medium])
-        .presentationBackground(.black)
+        .presentationBackground(AppTheme.sheetBg)
     }
 }
 
@@ -391,14 +409,7 @@ struct CategoryChip: View {
     let isSelected: Bool
     let action: () -> Void
 
-    private var chipColor: Color {
-        switch type {
-        case .lapDance:  return .pink
-        case .stageTip:  return .purple
-        case .randomTip: return .teal
-        case .custom:    return .orange
-        }
-    }
+    private var chipColor: Color { AppTheme.color(for: type) }
 
     var body: some View {
         Button(action: action) {
@@ -406,12 +417,12 @@ struct CategoryChip: View {
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 13)
                 .padding(.vertical, 9)
-                .background(isSelected ? chipColor.opacity(0.28) : Color.white.opacity(0.08))
-                .foregroundStyle(isSelected ? chipColor : .white.opacity(0.55))
+                .background(isSelected ? chipColor.opacity(0.22) : AppTheme.cardBg)
+                .foregroundStyle(isSelected ? chipColor : AppTheme.textSecondary)
                 .clipShape(Capsule())
                 .overlay(
                     Capsule()
-                        .strokeBorder(isSelected ? chipColor.opacity(0.55) : Color.clear, lineWidth: 1.5)
+                        .strokeBorder(isSelected ? chipColor.opacity(0.60) : AppTheme.borderSubtle, lineWidth: 1.2)
                 )
         }
         .buttonStyle(.plain)
@@ -434,49 +445,46 @@ struct SetGoalSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                AppTheme.sheetBg.ignoresSafeArea()
 
                 VStack(spacing: 32) {
-                    // Current goal label
+                    // Current goal
                     VStack(spacing: 6) {
                         Text("Current Goal")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.4))
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(AppTheme.textTertiary)
                             .textCase(.uppercase)
-                            .kerning(1)
+                            .kerning(1.2)
                         Text(store.nightlyGoal, format: .currency(code: "USD"))
                             .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.35))
+                            .foregroundStyle(AppTheme.textSecondary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, 8)
 
                     // New goal input
-                    VStack(spacing: 12) {
-                        HStack(alignment: .center, spacing: 4) {
-                            Text("$")
-                                .font(.system(size: 44, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.35))
-                                .padding(.top, 6)
-                            Text(goalText.isEmpty ? "0" : goalText)
-                                .font(.system(size: 72, weight: .bold, design: .rounded))
-                                .foregroundStyle(isValid ? .white : .white.opacity(0.3))
-                                .contentTransition(.numericText())
-                                .animation(.spring(duration: 0.2), value: goalText)
-                        }
-                        .frame(maxWidth: .infinity)
-
-                        // Hidden field drives keyboard
-                        TextField("", text: $goalText)
-                            .keyboardType(.decimalPad)
-                            .focused($isFocused)
-                            .frame(width: 1, height: 1)
-                            .opacity(0.01)
-                            .onAppear {
-                                isFocused = true
-                                goalText = String(format: "%.0f", store.nightlyGoal)
-                            }
+                    HStack(alignment: .center, spacing: 4) {
+                        Text("$")
+                            .font(.system(size: 44, weight: .bold))
+                            .foregroundStyle(AppTheme.textTertiary)
+                            .padding(.top, 6)
+                        Text(goalText.isEmpty ? "0" : goalText)
+                            .font(.system(size: 72, weight: .bold, design: .rounded))
+                            .foregroundStyle(isValid ? AppTheme.textPrimary : AppTheme.textTertiary)
+                            .contentTransition(.numericText())
+                            .animation(.spring(duration: 0.2), value: goalText)
                     }
+                    .frame(maxWidth: .infinity)
+
+                    TextField("", text: $goalText)
+                        .keyboardType(.decimalPad)
+                        .focused($isFocused)
+                        .frame(width: 1, height: 1)
+                        .opacity(0.01)
+                        .onAppear {
+                            isFocused = true
+                            goalText = String(format: "%.0f", store.nightlyGoal)
+                        }
 
                     // Quick-pick presets
                     VStack(alignment: .leading, spacing: 10) {
@@ -493,18 +501,18 @@ struct SetGoalSheet: View {
                                         .frame(maxWidth: .infinity)
                                         .background(
                                             goalText == "\(preset)"
-                                                ? Color.pink.opacity(0.25)
-                                                : Color.white.opacity(0.08)
+                                                ? AppTheme.neonPink.opacity(0.20)
+                                                : AppTheme.cardBg
                                         )
                                         .foregroundStyle(
-                                            goalText == "\(preset)" ? .pink : .white.opacity(0.6)
+                                            goalText == "\(preset)" ? AppTheme.neonPink : AppTheme.textSecondary
                                         )
                                         .clipShape(Capsule())
                                         .overlay(
                                             Capsule().strokeBorder(
                                                 goalText == "\(preset)"
-                                                    ? Color.pink.opacity(0.5) : Color.clear,
-                                                lineWidth: 1.5
+                                                    ? AppTheme.neonPink.opacity(0.55) : AppTheme.borderSubtle,
+                                                lineWidth: 1.2
                                             )
                                         )
                                 }
@@ -520,10 +528,11 @@ struct SetGoalSheet: View {
             }
             .navigationTitle("Nightly Goal")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(AppTheme.sheetBg, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
-                        .foregroundStyle(.white.opacity(0.55))
+                        .foregroundStyle(AppTheme.textSecondary)
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -539,18 +548,19 @@ struct SetGoalSheet: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
-                        .background(isValid ? Color.pink : Color.white.opacity(0.15))
+                        .background(isValid ? AppTheme.primaryGradient.opacity(1) : LinearGradient(colors: [AppTheme.cardBgElevated], startPoint: .leading, endPoint: .trailing))
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: isValid ? AppTheme.neonPink.opacity(0.35) : .clear, radius: 10, y: 4)
                 }
                 .buttonStyle(ScaleButtonStyle())
                 .disabled(!isValid)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
-                .background(.ultraThinMaterial)
+                .background(AppTheme.sheetBg)
             }
         }
         .presentationDetents([.medium])
-        .presentationBackground(.black)
+        .presentationBackground(AppTheme.sheetBg)
     }
 }

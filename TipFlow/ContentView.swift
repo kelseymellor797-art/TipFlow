@@ -15,7 +15,7 @@ struct ContentView: View {
             AnalyticsView()
                 .tabItem { Label("Analytics", systemImage: "chart.bar.fill") }
         }
-        .tint(.pink)
+        .tint(AppTheme.neonPink)
     }
 }
 

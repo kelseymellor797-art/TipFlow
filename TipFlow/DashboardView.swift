@@ -6,22 +6,21 @@ import UIKit
 
 struct DashboardView: View {
     @Environment(ShiftStore.self) private var store
-    @State private var showEndShift    = false
-    @State private var showCustom      = false
-    @State private var customType      = EarningsType.custom
-    @State private var showGoalEditor  = false
+    @State private var showEndShift   = false
+    @State private var showCustom     = false
+    @State private var customType     = EarningsType.custom
+    @State private var showGoalEditor = false
 
     var body: some View {
         @Bindable var store = store
 
         NavigationStack {
-            ZStack(alignment: .top) {
-                Color.black.ignoresSafeArea()
+            ZStack {
+                AppTheme.background.ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 14) {
 
-                        // ── Earnings summary ──────────────────────────────
                         TotalEarningsCard(
                             amount: store.currentShift.totalEarnings,
                             goal:   store.nightlyGoal
@@ -29,30 +28,31 @@ struct DashboardView: View {
 
                         HStack(spacing: 10) {
                             BreakdownCard(
-                                title: "Lap Dances",
-                                amount: store.currentShift.lapDanceTotal,
-                                color: .pink, icon: "sparkles"
+                                title:    "Lap Dances",
+                                amount:   store.currentShift.lapDanceTotal,
+                                gradient: AppTheme.primaryGradient,
+                                icon:     "sparkles"
                             )
                             BreakdownCard(
-                                title: "Stage Tips",
-                                amount: store.currentShift.stageTipTotal,
-                                color: .purple, icon: "music.note"
+                                title:    "Stage Tips",
+                                amount:   store.currentShift.stageTipTotal,
+                                gradient: AppTheme.blueGradient,
+                                icon:     "music.note"
                             )
                             BreakdownCard(
-                                title: "Random Tips",
-                                amount: store.currentShift.randomTipTotal,
-                                color: .teal, icon: "dollarsign"
+                                title:    "Random Tips",
+                                amount:   store.currentShift.randomTipTotal,
+                                gradient: AppTheme.tealGradient,
+                                icon:     "dollarsign"
                             )
                         }
 
-                        // ── Goal progress ─────────────────────────────────
                         GoalProgressBar(
                             current: store.currentShift.totalEarnings,
                             goal:    store.nightlyGoal,
                             onEdit:  { showGoalEditor = true }
                         )
 
-                        // ── Interaction ───────────────────────────────────
                         if store.isInteractionActive {
                             ActiveInteractionCard(elapsed: store.interactionElapsed) {
                                 store.showEndInteractionSheet = true
@@ -61,7 +61,6 @@ struct DashboardView: View {
                             StartInteractionButton { store.startInteraction() }
                         }
 
-                        // ── Quick log ─────────────────────────────────────
                         QuickLogGrid(showCustom: $showCustom, customType: $customType)
                     }
                     .padding(.horizontal, 16)
@@ -70,23 +69,23 @@ struct DashboardView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(AppTheme.background, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text("TipFlow")
                         .font(.headline.bold())
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.textPrimary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("End Shift") { showEndShift = true }
-                        .foregroundStyle(.pink)
+                        .foregroundStyle(AppTheme.neonPink)
                         .fontWeight(.semibold)
                 }
             }
         }
-        // ── Alerts & sheets ───────────────────────────────────────────────
         .alert("End Shift?", isPresented: $showEndShift) {
             Button("End Shift", role: .destructive) { store.endShift() }
-            Button("Cancel",    role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("Your shift will be saved to history and a new one will begin.")
         }
@@ -99,7 +98,6 @@ struct DashboardView: View {
         .sheet(isPresented: $store.showEndInteractionSheet) {
             EndInteractionSheet()
         }
-        // 1-minute prompt floats above everything
         .overlay {
             if store.showOneMinutePrompt {
                 OneMinutePromptOverlay()
@@ -122,40 +120,37 @@ private struct QuickLogGrid: View {
             SectionHeader(title: "Quick Log")
                 .padding(.top, 4)
 
-            // Lap Dances
-            earningsGroup(title: "Lap Dances", color: .pink) {
-                QuickInputButton(label: "+$20", sublabel: "Lap Dance", color: .pink) {
+            earningsGroup(title: "Lap Dances", gradient: AppTheme.primaryGradient, labelColor: AppTheme.neonPink) {
+                QuickInputButton(label: "+$20", sublabel: "Lap Dance", gradient: AppTheme.primaryGradient) {
                     store.logEarnings(type: .lapDance, amount: 20)
                 }
-                QuickInputButton(label: "+$40", sublabel: "Lap Dance", color: .pink) {
+                QuickInputButton(label: "+$40", sublabel: "Lap Dance", gradient: AppTheme.primaryGradient) {
                     store.logEarnings(type: .lapDance, amount: 40)
                 }
-                customButton(color: .pink, type: .lapDance)
+                customButton(gradient: AppTheme.primaryGradient, baseColor: AppTheme.neonPink, type: .lapDance)
             }
 
-            // Stage Tips
-            earningsGroup(title: "Stage Tips", color: .purple) {
-                QuickInputButton(label: "+$5",  sublabel: "Stage Tip", color: .purple) {
+            earningsGroup(title: "Stage Tips", gradient: AppTheme.blueGradient, labelColor: AppTheme.neonBlue) {
+                QuickInputButton(label: "+$5",  sublabel: "Stage Tip", gradient: AppTheme.blueGradient) {
                     store.logEarnings(type: .stageTip, amount: 5)
                 }
-                QuickInputButton(label: "+$10", sublabel: "Stage Tip", color: .purple) {
+                QuickInputButton(label: "+$10", sublabel: "Stage Tip", gradient: AppTheme.blueGradient) {
                     store.logEarnings(type: .stageTip, amount: 10)
                 }
-                customButton(color: .purple, type: .stageTip)
+                customButton(gradient: AppTheme.blueGradient, baseColor: AppTheme.neonBlue, type: .stageTip)
             }
 
-            // Random Tips + Custom
-            earningsGroup(title: "Random Tips", color: .teal) {
-                QuickInputButton(label: "+$20", sublabel: "Random Tip", color: .teal) {
+            earningsGroup(title: "Random Tips", gradient: AppTheme.tealGradient, labelColor: Color(red: 0.10, green: 0.85, blue: 0.80)) {
+                QuickInputButton(label: "+$20", sublabel: "Random Tip", gradient: AppTheme.tealGradient) {
                     store.logEarnings(type: .randomTip, amount: 20)
                 }
-                customButton(color: .teal, type: .randomTip)
+                customButton(gradient: AppTheme.tealGradient, baseColor: Color(red: 0.10, green: 0.85, blue: 0.80), type: .randomTip)
             }
         }
     }
 
     @ViewBuilder
-    private func customButton(color: Color, type: EarningsType) -> some View {
+    private func customButton(gradient: LinearGradient, baseColor: Color, type: EarningsType) -> some View {
         Button {
             customType = type
             showCustom = true
@@ -163,44 +158,48 @@ private struct QuickLogGrid: View {
             VStack(spacing: 5) {
                 Image(systemName: "plus.circle")
                     .font(.title3)
+                    .foregroundStyle(gradient)
                 Text("Custom")
                     .font(.subheadline.bold())
+                    .foregroundStyle(AppTheme.textPrimary)
                 Text("Amount")
                     .font(.caption)
-                    .opacity(0.6)
+                    .foregroundStyle(AppTheme.textSecondary)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 72)
-            .background(color.opacity(0.10))
-            .foregroundStyle(color.opacity(0.85))
+            .background(
+                ZStack {
+                    AppTheme.cardBg
+                    gradient.opacity(0.12)
+                }
+            )
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(color.opacity(0.30), lineWidth: 1.5)
+                    .strokeBorder(baseColor.opacity(0.35), lineWidth: 1.5)
             )
         }
         .buttonStyle(ScaleButtonStyle())
     }
-        }
 
-@ViewBuilder
+    @ViewBuilder
     private func earningsGroup<Content: View>(
         title: String,
-        color: Color,
+        gradient: LinearGradient,
+        labelColor: Color,
         @ViewBuilder buttons: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(color.opacity(0.85))
-
+                .foregroundStyle(labelColor)
             HStack(spacing: 10) {
                 buttons()
             }
         }
     }
-
-// "MARK: Preview"
+}
 
 #Preview {
     DashboardView()
