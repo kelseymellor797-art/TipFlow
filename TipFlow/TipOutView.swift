@@ -23,7 +23,7 @@ struct TipOutView: View {
     private let recipients: [Recipient] = [
         Recipient(role: "Manager",         icon: "person.badge.shield.checkmark", rate: 0.10, gradient: AppTheme.primaryGradient),
         Recipient(role: "DJ",              icon: "music.note",                     rate: 0.10, gradient: AppTheme.blueGradient),
-        Recipient(role: "Bouncer",         icon: "figure.stand",                   rate: 0.10, gradient: AppTheme.tealGradient),
+        Recipient(role: "Bouncer",         icon: "figure.stand",                   rate: 0.05, gradient: AppTheme.tealGradient),
     ]
 
     private var totalTipOut: Double { recipients.reduce(0) { $0 + (total * $1.rate) } }
@@ -91,7 +91,7 @@ struct TipOutView: View {
                                 }
                                 Spacer()
                                 VStack(alignment: .trailing, spacing: 4) {
-                                    Text("30% of earnings")
+                                    Text("\(Int(totalTipOut / max(total, 1) * 100))% of earnings")
                                         .font(.caption)
                                         .foregroundStyle(AppTheme.textTertiary)
                                     Text("(\(Int(totalTipOut / max(total, 1) * 100))%)")
