@@ -564,3 +564,159 @@ struct SetGoalSheet: View {
         .presentationBackground(AppTheme.sheetBg)
     }
 }
+
+// MARK: - AddExpenseSheet
+
+struct AddExpenseSheet: View {
+    @Environment(ShiftStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var selectedType: ExpenseType = .houseFee
+    @State private var amountText: String = ""
+    @State private var note: String = ""
+    @FocusState private var amountFocused: Bool
+
+    private var parsedAmount: Double? { Double(amountText) }
+    private var isValid: Bool { (parsedAmount ?? 0) > 0 }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.sheetBg.ignoresSafeArea()
+
+                VStack(spacing: 28) {
+                    // Large amount display
+                    HStack(alignment: .center, spacing: 4) {
+                        Text("$")
+                            .font(.system(size: 44, weight: .bold))
+                            .foregroundStyle(AppTheme.textTertiary)
+                            .padding(.top, 6)
+                        Text(amountText.isEmpty ? "0" : amountText)
+                            .font(.system(size: 72, weight: .bold, design: .rounded))
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .contentTransition(.numericText())
+                            .animation(.spring(duration: 0.2), value: amountText)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 16)
+
+                    // Hidden field drives keyboard
+                    TextField("", text: $amountText)
+                        .keyboardType(.decimalPad)
+                        .focused($amountFocused)
+                        .frame(width: 1, height: 1)
+                        .opacity(0.01)
+                        .onAppear { amountFocused = true }
+
+                    // Expense type chips
+                    VStack(alignment: .leading, spacing: 12) {
+                        SectionHeader(title: "Category")
+                        LazyVGrid(
+                            columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
+                            spacing: 8
+                        ) {
+                            ForEach(ExpenseType.allCases, id: \.self) { type in
+                                ExpenseTypeChip(type: type, isSelected: selectedType == type) {
+                                    UISelectionFeedbackGenerator().selectionChanged()
+                                    selectedType = type
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    // Note field
+                    VStack(alignment: .leading, spacing: 8) {
+                        SectionHeader(title: "Note (Optional)")
+                        TextField("e.g. House fee paid at door", text: $note)
+                            .font(.body)
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .tint(AppTheme.neonPurple)
+                            .padding(12)
+                            .background(AppTheme.cardBgElevated)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(AppTheme.borderSubtle, lineWidth: 2)
+                            )
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Spacer()
+                }
+                .padding(.horizontal, 24)
+            }
+            .navigationTitle("Add Expense")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(AppTheme.sheetBg, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    guard let amt = parsedAmount, amt > 0 else { return }
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    store.logExpense(type: selectedType, amount: amt, note: note)
+                    dismiss()
+                } label: {
+                    Text(isValid
+                        ? "Log Expense \((parsedAmount ?? 0).formatted(.currency(code: "USD")))"
+                        : "Enter an Amount")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(isValid ? AppTheme.primaryGradient : LinearGradient(colors: [AppTheme.cardBgElevated], startPoint: .leading, endPoint: .trailing))
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: isValid ? AppTheme.neonPink.opacity(0.35) : .clear, radius: 10, y: 4)
+                }
+                .buttonStyle(ScaleButtonStyle())
+                .disabled(!isValid)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+                .background(AppTheme.sheetBg)
+            }
+        }
+        .presentationDetents([.large])
+        .presentationBackground(AppTheme.sheetBg)
+    }
+}
+
+// MARK: - ExpenseTypeChip
+
+private struct ExpenseTypeChip: View {
+    let type: ExpenseType
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: type.icon)
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? AppTheme.neonPurple : AppTheme.textSecondary)
+                Text(type.rawValue)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(isSelected ? AppTheme.neonPurple : AppTheme.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(isSelected ? AppTheme.neonPurple.opacity(0.18) : AppTheme.cardBg)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(
+                        isSelected ? AppTheme.neonPurple.opacity(0.60) : AppTheme.borderSubtle,
+                        lineWidth: 2.5
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
+    }
+}

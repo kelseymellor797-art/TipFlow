@@ -29,7 +29,6 @@ enum InteractionOutcome: String, Codable, CaseIterable {
         }
     }
 
-    /// Default dollar suggestion shown when outcome is selected.
     var earningsSuggestion: Double {
         switch self {
         case .noSale:         return 0
@@ -38,6 +37,43 @@ enum InteractionOutcome: String, Codable, CaseIterable {
         case .multipleDances: return 40
         case .vipRoom:        return 100
         }
+    }
+}
+
+// MARK: - ExpenseType
+
+enum ExpenseType: String, Codable, CaseIterable {
+    case houseFee  = "House Fee"
+    case tipOut    = "Tip Out"
+    case outfit    = "Outfit"
+    case transport = "Uber / Transport"
+    case food      = "Food / Drink"
+    case other     = "Other"
+
+    var icon: String {
+        switch self {
+        case .houseFee:  return "building.2"
+        case .tipOut:    return "dollarsign.arrow.trianglehead.counterclockwise.rotate.90"
+        case .outfit:    return "tshirt"
+        case .transport: return "car.fill"
+        case .food:      return "fork.knife"
+        case .other:     return "ellipsis.circle"
+        }
+    }
+}
+
+// MARK: - Expense
+
+struct Expense: Identifiable, Codable {
+    let id: UUID
+    let type: ExpenseType
+    let amount: Double
+    let note: String
+    let timestamp: Date
+
+    init(type: ExpenseType, amount: Double, note: String = "") {
+        self.id = UUID(); self.type = type; self.amount = amount
+        self.note = note; self.timestamp = Date()
     }
 }
 
@@ -82,6 +118,14 @@ struct InteractionSession: Identifiable, Codable {
     }
 }
 
+// MARK: - HourlyEarning
+
+struct HourlyEarning: Identifiable {
+    var id: Int { hour }
+    let hour: Int
+    let total: Double
+}
+
 // MARK: - Shift
 
 struct Shift: Identifiable, Codable {
@@ -89,12 +133,15 @@ struct Shift: Identifiable, Codable {
     let startDate: Date
     var entries: [EarningsEntry]
     var interactions: [InteractionSession]
+    var expenses: [Expense]
 
-    // MARK: Computed totals
     var totalEarnings: Double   { entries.reduce(0) { $0 + $1.amount } }
     var lapDanceTotal: Double   { entries.filter { $0.type == .lapDance }.reduce(0) { $0 + $1.amount } }
     var stageTipTotal: Double   { entries.filter { $0.type == .stageTip }.reduce(0) { $0 + $1.amount } }
     var randomTipTotal: Double  { entries.filter { $0.type == .randomTip || $0.type == .custom }.reduce(0) { $0 + $1.amount } }
+
+    var totalExpenses: Double   { expenses.reduce(0) { $0 + $1.amount } }
+    var netProfit: Double       { totalEarnings - totalExpenses }
 
     var completedInteractions: [InteractionSession] { interactions.filter { !$0.isActive } }
 
@@ -111,26 +158,19 @@ struct Shift: Identifiable, Codable {
         return durations.reduce(0, +) / Double(durations.count)
     }
 
-    /// Total shift window: startDate → 2:00 AM (next occurrence after start).
-    /// Gives a consistent denominator for per-hour rate regardless of when entries are logged.
     var shiftDurationHours: Double {
         let calendar = Calendar.current
         let startHour = calendar.component(.hour, from: startDate)
-
-        // If shift started before 2am (e.g. 12:30am), 2am is the same calendar day.
-        // If shift started at/after 2am (e.g. 9pm), 2am is the next calendar day.
         let baseDay: Date
         if startHour < 2 {
             baseDay = startDate
         } else {
             baseDay = calendar.date(byAdding: .day, value: 1, to: startDate) ?? startDate
         }
-
         var endComponents    = calendar.dateComponents([.year, .month, .day], from: baseDay)
         endComponents.hour   = 2
         endComponents.minute = 0
         endComponents.second = 0
-
         let shiftEnd = calendar.date(from: endComponents) ?? startDate.addingTimeInterval(5 * 3600)
         return max(0.5, shiftEnd.timeIntervalSince(startDate)) / 3600
     }
@@ -141,11 +181,51 @@ struct Shift: Identifiable, Codable {
         return totalEarnings / hours
     }
 
+    var hourlyBreakdown: [HourlyEarning] {
+        var hourTotals: [Int: Double] = [:]
+        for entry in entries {
+            let hour = Calendar.current.component(.hour, from: entry.timestamp)
+            hourTotals[hour, default: 0] += entry.amount
+        }
+        return hourTotals
+            .map { HourlyEarning(hour: $0.key, total: $0.value) }
+            .sorted {
+                let a = $0.hour < 6 ? $0.hour + 24 : $0.hour
+                let b = $1.hour < 6 ? $1.hour + 24 : $1.hour
+                return a < b
+            }
+    }
+
+    // MARK: Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case id, startDate, entries, interactions, expenses
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id           = try c.decode(UUID.self, forKey: .id)
+        startDate    = try c.decode(Date.self, forKey: .startDate)
+        entries      = try c.decode([EarningsEntry].self, forKey: .entries)
+        interactions = try c.decode([InteractionSession].self, forKey: .interactions)
+        expenses     = (try? c.decode([Expense].self, forKey: .expenses)) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id,           forKey: .id)
+        try c.encode(startDate,    forKey: .startDate)
+        try c.encode(entries,      forKey: .entries)
+        try c.encode(interactions, forKey: .interactions)
+        try c.encode(expenses,     forKey: .expenses)
+    }
+
     init() {
         self.id           = UUID()
         self.startDate    = Date()
         self.entries      = []
         self.interactions = []
+        self.expenses     = []
     }
 }
 
@@ -158,6 +238,33 @@ struct ShiftRecord: Identifiable, Codable {
     let interactionCount: Int
     let conversionRate: Double
     let durationHours: Double
+    let netProfit: Double
+
+    private enum CodingKeys: String, CodingKey {
+        case id, date, totalEarnings, interactionCount, conversionRate, durationHours, netProfit
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id             = try c.decode(UUID.self,   forKey: .id)
+        date           = try c.decode(Date.self,   forKey: .date)
+        totalEarnings  = try c.decode(Double.self, forKey: .totalEarnings)
+        interactionCount = try c.decode(Int.self,  forKey: .interactionCount)
+        conversionRate = try c.decode(Double.self, forKey: .conversionRate)
+        durationHours  = try c.decode(Double.self, forKey: .durationHours)
+        netProfit      = (try? c.decode(Double.self, forKey: .netProfit)) ?? totalEarnings
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id,             forKey: .id)
+        try c.encode(date,           forKey: .date)
+        try c.encode(totalEarnings,  forKey: .totalEarnings)
+        try c.encode(interactionCount, forKey: .interactionCount)
+        try c.encode(conversionRate, forKey: .conversionRate)
+        try c.encode(durationHours,  forKey: .durationHours)
+        try c.encode(netProfit,      forKey: .netProfit)
+    }
 
     init(from shift: Shift) {
         self.id               = shift.id
@@ -166,5 +273,6 @@ struct ShiftRecord: Identifiable, Codable {
         self.interactionCount = shift.interactions.count
         self.conversionRate   = shift.conversionRate
         self.durationHours    = shift.shiftDurationHours
+        self.netProfit        = shift.netProfit
     }
 }

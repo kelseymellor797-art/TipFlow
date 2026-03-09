@@ -1,39 +1,22 @@
 // ShiftStore.swift — TipFlow
-// Central state manager. @Observable so SwiftUI views auto-update.
-// Persists shift data to UserDefaults as JSON.
-
 import Foundation
 import Observation
 
 @Observable
 final class ShiftStore {
-
-    // MARK: - Published State
-
     var currentShift: Shift = Shift()
     var pastShifts: [ShiftRecord] = []
-
-    /// The live interaction being tracked (nil when none is active).
     var activeInteraction: InteractionSession?
-    /// Seconds elapsed since the current interaction started.
     var interactionElapsed: TimeInterval = 0
-
-    /// Drives the 1-minute check-in overlay.
     var showOneMinutePrompt: Bool = false
-    /// Drives the end-interaction sheet from the overlay.
     var showEndInteractionSheet: Bool = false
-
-    // MARK: - Settings
-
     var nightlyGoal: Double = 400
     var managerRate: Double = 0.10
     var djRate:      Double = 0.10
     var bouncerRate: Double = 0.05
-
-    // MARK: - Private
+    var lastInteractionEndTime: Date? = nil
 
     private var timerTask: Task<Void, Never>?
-    /// Elapsed threshold at which the next prompt fires.
     private var nextPromptAt: TimeInterval = 60
 
     private enum Keys {
@@ -47,11 +30,7 @@ final class ShiftStore {
         static let interactionElapsed  = "tipflow.interactionElapsed"
     }
 
-    // MARK: - Init
-
     init() { load() }
-
-    // MARK: - Earnings
 
     func logEarnings(type: EarningsType, amount: Double, interactionID: UUID? = nil) {
         let entry = EarningsEntry(type: type, amount: amount, interactionID: interactionID)
@@ -59,7 +38,11 @@ final class ShiftStore {
         saveCurrentShift()
     }
 
-    // MARK: - Interaction lifecycle
+    func logExpense(type: ExpenseType, amount: Double, note: String = "") {
+        let expense = Expense(type: type, amount: amount, note: note)
+        currentShift.expenses.append(expense)
+        saveCurrentShift()
+    }
 
     var isInteractionActive: Bool { activeInteraction != nil }
 
@@ -73,13 +56,11 @@ final class ShiftStore {
         startTimer()
     }
 
-    /// Extend the timer — next prompt fires after `minutes` more minutes.
     func extendInteraction(by minutes: Int) {
         showOneMinutePrompt = false
         nextPromptAt = interactionElapsed + Double(minutes * 60)
     }
 
-    /// Dismiss the prompt; re-prompt in another minute.
     func dismissOneMinutePrompt() {
         showOneMinutePrompt = false
         nextPromptAt = interactionElapsed + 300
@@ -99,6 +80,7 @@ final class ShiftStore {
         }
 
         currentShift.interactions.append(interaction)
+        lastInteractionEndTime = Date()
         activeInteraction   = nil
         interactionElapsed  = 0
         showOneMinutePrompt = false
@@ -107,18 +89,15 @@ final class ShiftStore {
         saveCurrentShift()
     }
 
-    // MARK: - Shift management
-
     func endShift() {
         if activeInteraction != nil { endInteraction(outcome: .noSale, amount: nil) }
         let record = ShiftRecord(from: currentShift)
         pastShifts.insert(record, at: 0)
         currentShift = Shift()
+        lastInteractionEndTime = nil
         savePastShifts()
         saveCurrentShift()
     }
-
-    // MARK: - Timer (Swift Concurrency)
 
     private func startTimer() {
         timerTask?.cancel()
@@ -140,8 +119,6 @@ final class ShiftStore {
         timerTask?.cancel()
         timerTask = nil
     }
-
-    // MARK: - Persistence
 
     private func saveCurrentShift() {
         guard let data = try? JSONEncoder().encode(currentShift) else { return }
@@ -187,12 +164,10 @@ final class ShiftStore {
             pastShifts = records
         }
 
-        // Restore mid-session interaction if the app was killed while one was active.
         if let data        = UserDefaults.standard.data(forKey: Keys.activeInteraction),
            let interaction = try? JSONDecoder().decode(InteractionSession.self, from: data),
            interaction.isActive {
             activeInteraction  = interaction
-            // Use real elapsed time since startTime so the clock is accurate on restore.
             interactionElapsed = max(
                 UserDefaults.standard.double(forKey: Keys.interactionElapsed),
                 Date().timeIntervalSince(interaction.startTime)

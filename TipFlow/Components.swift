@@ -29,7 +29,6 @@ struct TotalEarningsCard: View {
         .background(
             ZStack {
                 AppTheme.cardBgElevated
-                // Subtle radial glow behind the number
                 RadialGradient(
                     colors: [AppTheme.neonPurple.opacity(0.22), .clear],
                     center: .center, startRadius: 10, endRadius: 160
@@ -132,12 +131,142 @@ struct GoalProgressBar: View {
                         .fill(isComplete ? AppTheme.goldGradient : AppTheme.progressGradient)
                         .frame(width: geo.size.width * CGFloat(progress), height: 10)
                         .animation(.spring(duration: 0.7, bounce: 0.2), value: progress)
-                        // Glow under the bar
                         .shadow(color: AppTheme.neonPink.opacity(0.55), radius: 6, y: 2)
                 }
             }
             .frame(height: 10)
         }
+        .padding(16)
+        .neonCard()
+    }
+}
+
+// MARK: - GoalProjectionCard
+
+struct GoalProjectionCard: View {
+    let shift: Shift
+    let goal: Double
+
+    private func projectionInfo(elapsedHours: Double) -> (projected: Double, rate: Double, status: String, color: Color)? {
+        guard elapsedHours >= 0.25 && shift.totalEarnings > 0 else { return nil }
+        let rate = shift.totalEarnings / elapsedHours
+        let projected = rate * shift.shiftDurationHours
+        let ratio = projected / max(goal, 1)
+
+        let status: String
+        let color: Color
+        if ratio >= 1.10 {
+            status = "You're crushing it"
+            color  = AppTheme.neonPink
+        } else if ratio >= 0.90 {
+            status = "On pace"
+            color  = Color(red: 0.10, green: 0.85, blue: 0.80)
+        } else if ratio >= 0.70 {
+            status = "Pick up the pace"
+            color  = Color(red: 1.0, green: 0.75, blue: 0.2)
+        } else {
+            status = "Time to hustle"
+            color  = Color(red: 1.0, green: 0.45, blue: 0.35)
+        }
+        return (projected, rate, status, color)
+    }
+
+    var body: some View {
+        TimelineView(.everyMinute) { context in
+            let elapsedHours = context.date.timeIntervalSince(shift.startDate) / 3600
+            if let info = projectionInfo(elapsedHours: elapsedHours) {
+                VStack(spacing: 8) {
+                    SectionHeader(title: "Goal Projection")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(info.projected, format: .currency(code: "USD"))
+                        .font(.system(size: 44, weight: .bold, design: .rounded))
+                        .foregroundStyle(info.color)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(info.status)
+                        .font(.headline.bold())
+                        .foregroundStyle(info.color)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text("Based on your \(info.rate.formatted(.currency(code: "USD")))/hr pace")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.textTertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(18)
+                .neonCard()
+            }
+        }
+    }
+}
+
+// MARK: - CirculationTrackerCard
+
+struct CirculationTrackerCard: View {
+    let lastEnd: Date
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "figure.walk.circle.fill")
+                .font(.system(size: 38))
+                .foregroundStyle(AppTheme.blueGradient)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Last Interaction")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(lastEnd, style: .relative)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundStyle(AppTheme.textPrimary)
+                    Text("ago")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(16)
+        .neonCard(glow: AppTheme.neonBlue.opacity(0.20))
+    }
+}
+
+// MARK: - NetProfitCard
+
+struct NetProfitCard: View {
+    let totalEarnings: Double
+    let totalExpenses: Double
+
+    var netProfit: Double { totalEarnings - totalExpenses }
+
+    private var expenseRatio: Double { totalExpenses / max(totalEarnings, 1) }
+    private var profitColor: Color {
+        netProfit > 0 ? Color(red: 0.10, green: 0.85, blue: 0.80) : Color(red: 1.0, green: 0.45, blue: 0.35)
+    }
+    private var expenseColor: Color {
+        expenseRatio > 0.3 ? Color(red: 1.0, green: 0.45, blue: 0.35) : AppTheme.textTertiary
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Net Profit")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.textSecondary)
+
+            Text(netProfit, format: .currency(code: "USD"))
+                .font(.system(size: 38, weight: .bold, design: .rounded))
+                .foregroundStyle(profitColor)
+                .contentTransition(.numericText(value: netProfit))
+                .animation(.spring(duration: 0.3), value: netProfit)
+
+            Text("Expenses: \(totalExpenses.formatted(.currency(code: "USD")))")
+                .font(.caption)
+                .foregroundStyle(expenseColor)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .neonCard()
     }

@@ -11,6 +11,7 @@ struct DashboardView: View {
     @State private var customType     = EarningsType.custom
     @State private var showGoalEditor = false
     @State private var showTipOut     = false
+    @State private var showExpenses   = false
 
     var body: some View {
         @Bindable var store = store
@@ -54,15 +55,29 @@ struct DashboardView: View {
                             onEdit:  { showGoalEditor = true }
                         )
 
+                        if store.currentShift.totalEarnings > 0 {
+                            GoalProjectionCard(shift: store.currentShift, goal: store.nightlyGoal)
+                        }
+
                         if store.isInteractionActive {
                             ActiveInteractionCard(elapsed: store.interactionElapsed) {
                                 store.showEndInteractionSheet = true
                             }
                         } else {
                             StartInteractionButton { store.startInteraction() }
+                            if let lastEnd = store.lastInteractionEndTime {
+                                CirculationTrackerCard(lastEnd: lastEnd)
+                            }
                         }
 
                         QuickLogGrid(showCustom: $showCustom, customType: $customType)
+
+                        if !store.currentShift.expenses.isEmpty {
+                            NetProfitCard(
+                                totalEarnings: store.currentShift.totalEarnings,
+                                totalExpenses: store.currentShift.totalExpenses
+                            )
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
@@ -73,10 +88,19 @@ struct DashboardView: View {
             .toolbarBackground(AppTheme.background, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showTipOut = true
+                    Menu {
+                        Button {
+                            showTipOut = true
+                        } label: {
+                            Label("Tip Out", systemImage: "dollarsign.arrow.trianglehead.counterclockwise.rotate.90")
+                        }
+                        Button {
+                            showExpenses = true
+                        } label: {
+                            Label("Add Expense", systemImage: "minus.circle")
+                        }
                     } label: {
-                        Label("Tip Out", systemImage: "dollarsign.arrow.trianglehead.counterclockwise.rotate.90")
+                        Image(systemName: "ellipsis.circle")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(AppTheme.neonPurple)
                     }
@@ -101,6 +125,9 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $showTipOut) {
             TipOutView()
+        }
+        .sheet(isPresented: $showExpenses) {
+            AddExpenseSheet()
         }
         .sheet(isPresented: $showCustom) {
             CustomAmountSheet(initialType: customType)
