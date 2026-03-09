@@ -111,8 +111,28 @@ struct Shift: Identifiable, Codable {
         return durations.reduce(0, +) / Double(durations.count)
     }
 
+    /// Total shift window: startDate → 2:00 AM (next occurrence after start).
+    /// Gives a consistent denominator for per-hour rate regardless of when entries are logged.
     var shiftDurationHours: Double {
-        max(0, Date().timeIntervalSince(startDate)) / 3600
+        let calendar = Calendar.current
+        let startHour = calendar.component(.hour, from: startDate)
+
+        // If shift started before 2am (e.g. 12:30am), 2am is the same calendar day.
+        // If shift started at/after 2am (e.g. 9pm), 2am is the next calendar day.
+        let baseDay: Date
+        if startHour < 2 {
+            baseDay = startDate
+        } else {
+            baseDay = calendar.date(byAdding: .day, value: 1, to: startDate) ?? startDate
+        }
+
+        var endComponents    = calendar.dateComponents([.year, .month, .day], from: baseDay)
+        endComponents.hour   = 2
+        endComponents.minute = 0
+        endComponents.second = 0
+
+        let shiftEnd = calendar.date(from: endComponents) ?? startDate.addingTimeInterval(5 * 3600)
+        return max(0.5, shiftEnd.timeIntervalSince(startDate)) / 3600
     }
 
     var earningsPerHour: Double {
