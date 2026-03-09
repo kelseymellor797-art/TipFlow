@@ -10,6 +10,7 @@ struct DashboardView: View {
     @State private var showCustom     = false
     @State private var customType     = EarningsType.custom
     @State private var showGoalEditor = false
+    @State private var showTipOut     = false
 
     var body: some View {
         @Bindable var store = store
@@ -71,6 +72,15 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(AppTheme.background, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showTipOut = true
+                    } label: {
+                        Label("Tip Out", systemImage: "dollarsign.arrow.trianglehead.counterclockwise.rotate.90")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.neonPurple)
+                    }
+                }
                 ToolbarItem(placement: .principal) {
                     Text("TipFlow")
                         .font(.headline.bold())
@@ -88,6 +98,9 @@ struct DashboardView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Your shift will be saved to history and a new one will begin.")
+        }
+        .sheet(isPresented: $showTipOut) {
+            TipOutView()
         }
         .sheet(isPresented: $showCustom) {
             CustomAmountSheet(initialType: customType)
