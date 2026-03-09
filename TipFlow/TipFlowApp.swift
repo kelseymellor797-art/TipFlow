@@ -9,9 +9,13 @@ import SwiftUI
 
 @main
 struct TipFlowApp: App {
+    @State private var store = ShiftStore()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(store)
+                .preferredColorScheme(.dark)
         }
     }
 }
