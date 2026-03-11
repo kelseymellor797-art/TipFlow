@@ -4,14 +4,31 @@
 import SwiftUI
 import UIKit
 
+// Single enum drives every sheet presented from the Dashboard
+enum DashboardSheet: Identifiable, Equatable {
+    case tipOut
+    case expenses
+    case custom(EarningsType)
+    case goalEditor
+    case endInteraction
+    case startShift
+
+    var id: String {
+        switch self {
+        case .tipOut:               "tipOut"
+        case .expenses:             "expenses"
+        case .custom(let t):        "custom.\(t)"
+        case .goalEditor:           "goalEditor"
+        case .endInteraction:       "endInteraction"
+        case .startShift:           "startShift"
+        }
+    }
+}
+
 struct DashboardView: View {
     @Environment(ShiftStore.self) private var store
-    @State private var showEndShift   = false
-    @State private var showCustom     = false
-    @State private var customType     = EarningsType.custom
-    @State private var showGoalEditor = false
-    @State private var showTipOut     = false
-    @State private var showExpenses   = false
+    @State private var showEndShift  = false
+    @State private var activeSheet: DashboardSheet?
 
     var body: some View {
         @Bindable var store = store
@@ -52,7 +69,7 @@ struct DashboardView: View {
                         GoalProgressBar(
                             current: store.currentShift.totalEarnings,
                             goal:    store.nightlyGoal,
-                            onEdit:  { showGoalEditor = true }
+                            onEdit:  { activeSheet = .goalEditor }
                         )
 
                         if store.currentShift.totalEarnings > 0 {
@@ -70,7 +87,7 @@ struct DashboardView: View {
                             }
                         }
 
-                        QuickLogGrid(showCustom: $showCustom, customType: $customType)
+                        QuickLogGrid(activeSheet: $activeSheet)
 
                         if !store.currentShift.expenses.isEmpty {
                             NetProfitCard(
@@ -90,12 +107,12 @@ struct DashboardView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
                         Button {
-                            showTipOut = true
+                            activeSheet = .tipOut
                         } label: {
                             Label("Tip Out", systemImage: "dollarsign.arrow.trianglehead.counterclockwise.rotate.90")
                         }
                         Button {
-                            showExpenses = true
+                            activeSheet = .expenses
                         } label: {
                             Label("Add Expense", systemImage: "minus.circle")
                         }
@@ -117,29 +134,49 @@ struct DashboardView: View {
                 }
             }
         }
+        // ONE sheet to rule them all
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .tipOut:
+                TipOutView()
+            case .expenses:
+                AddExpenseSheet()
+            case .custom(let type):
+                CustomAmountSheet(initialType: type)
+            case .goalEditor:
+                SetGoalSheet()
+            case .endInteraction:
+                EndInteractionSheet()
+            case .startShift:
+                OutfitSetupSheet(mode: .startShift)
+            }
+        }
+        // Sync store booleans → single sheet
+        .onChange(of: store.showEndInteractionSheet) { _, show in
+            if show {
+                activeSheet = .endInteraction
+            } else if case .endInteraction = activeSheet {
+                activeSheet = nil
+            }
+        }
+        .onChange(of: store.showStartShift) { _, show in
+            if show {
+                activeSheet = .startShift
+            } else if case .startShift = activeSheet {
+                activeSheet = nil
+            }
+        }
+        // Sync sheet dismiss → store booleans
+        .onChange(of: activeSheet) { _, sheet in
+            if sheet == nil, store.showEndInteractionSheet {
+                store.showEndInteractionSheet = false
+            }
+        }
         .alert("End Shift?", isPresented: $showEndShift) {
             Button("End Shift", role: .destructive) { store.endShift() }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Your shift will be saved to history and a new one will begin.")
-        }
-        .sheet(isPresented: $showTipOut) {
-            TipOutView()
-        }
-        .sheet(isPresented: $showExpenses) {
-            AddExpenseSheet()
-        }
-        .sheet(isPresented: $showCustom) {
-            CustomAmountSheet(initialType: customType)
-        }
-        .sheet(isPresented: $showGoalEditor) {
-            SetGoalSheet()
-        }
-        .sheet(isPresented: $store.showEndInteractionSheet) {
-            EndInteractionSheet()
-        }
-        .sheet(isPresented: $store.showStartShift) {
-            OutfitSetupSheet(mode: .startShift)
         }
         .overlay {
             if store.showOneMinutePrompt {
@@ -155,8 +192,7 @@ struct DashboardView: View {
 
 private struct QuickLogGrid: View {
     @Environment(ShiftStore.self) private var store
-    @Binding var showCustom: Bool
-    @Binding var customType: EarningsType
+    @Binding var activeSheet: DashboardSheet?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -195,8 +231,7 @@ private struct QuickLogGrid: View {
     @ViewBuilder
     private func customButton(gradient: LinearGradient, baseColor: Color, type: EarningsType) -> some View {
         Button {
-            customType = type
-            showCustom = true
+            activeSheet = .custom(type)
         } label: {
             VStack(spacing: 5) {
                 Image(systemName: "plus.circle")
