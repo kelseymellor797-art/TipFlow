@@ -113,7 +113,14 @@ final class ShiftStore {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 guard !Task.isCancelled else { break }
                 interactionElapsed += 1
-                saveActiveInteraction()
+                let elapsed = interactionElapsed
+                let interaction = activeInteraction
+                Task.detached(priority: .background) {
+                    if let data = try? JSONEncoder().encode(interaction) {
+                        UserDefaults.standard.set(data, forKey: Keys.activeInteraction)
+                    }
+                    UserDefaults.standard.set(elapsed, forKey: Keys.interactionElapsed)
+                }
                 if interactionElapsed >= nextPromptAt && !showOneMinutePrompt {
                     showOneMinutePrompt = true
                     nextPromptAt = interactionElapsed + 60
@@ -128,13 +135,19 @@ final class ShiftStore {
     }
 
     private func saveCurrentShift() {
-        guard let data = try? JSONEncoder().encode(currentShift) else { return }
-        UserDefaults.standard.set(data, forKey: Keys.currentShift)
+        let shift = currentShift
+        Task.detached(priority: .background) {
+            guard let data = try? JSONEncoder().encode(shift) else { return }
+            UserDefaults.standard.set(data, forKey: Keys.currentShift)
+        }
     }
 
     private func savePastShifts() {
-        guard let data = try? JSONEncoder().encode(pastShifts) else { return }
-        UserDefaults.standard.set(data, forKey: Keys.pastShifts)
+        let shifts = pastShifts
+        Task.detached(priority: .background) {
+            guard let data = try? JSONEncoder().encode(shifts) else { return }
+            UserDefaults.standard.set(data, forKey: Keys.pastShifts)
+        }
     }
 
     private func saveActiveInteraction() {

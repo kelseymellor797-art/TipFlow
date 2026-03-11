@@ -748,7 +748,6 @@ struct OutfitSetupSheet: View {
     @State private var showMoreDetails   = false
     @State private var endingComfortRating = 3
     @State private var showCamera        = false
-    @State private var showGallery       = false
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
 
     private var previousSession: OutfitSession? {
@@ -899,15 +898,6 @@ struct OutfitSetupSheet: View {
                 }
             }
         }
-        .photosPicker(isPresented: $showGallery, selection: $selectedPhotoItem, matching: .images)
-        .onChange(of: selectedPhotoItem) { _, item in
-            Task {
-                if let data = try? await item?.loadTransferable(type: Data.self),
-                   let img = UIImage(data: data) {
-                    selectedImage = img
-                }
-            }
-        }
         .sheet(isPresented: $showCamera) {
             CameraPickerView(image: $selectedImage)
         }
@@ -924,7 +914,11 @@ struct OutfitSetupSheet: View {
                     .frame(height: 180)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(AppTheme.borderGlow, lineWidth: 3))
-                    .onTapGesture { showGallery = true }
+                    .overlay(
+                        PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                            Color.clear
+                        }
+                    )
             } else {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(AppTheme.cardBg)
@@ -953,7 +947,7 @@ struct OutfitSetupSheet: View {
                         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.borderSubtle, lineWidth: 3))
                 }
                 .buttonStyle(ScaleButtonStyle())
-                Button { showGallery = true } label: {
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
                     Label("Gallery", systemImage: "photo.on.rectangle")
                         .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity)
@@ -964,6 +958,14 @@ struct OutfitSetupSheet: View {
                         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.borderSubtle, lineWidth: 3))
                 }
                 .buttonStyle(ScaleButtonStyle())
+                .onChange(of: selectedPhotoItem) { _, item in
+                    Task {
+                        if let data = try? await item?.loadTransferable(type: Data.self),
+                           let img = UIImage(data: data) {
+                            selectedImage = img
+                        }
+                    }
+                }
             }
         }
     }
