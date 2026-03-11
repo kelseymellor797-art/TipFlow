@@ -85,13 +85,39 @@ struct EarningsEntry: Identifiable, Codable {
     let amount: Double
     let timestamp: Date
     var interactionID: UUID?
+    var outfitSessionId: UUID?
 
-    init(type: EarningsType, amount: Double, interactionID: UUID? = nil) {
-        self.id            = UUID()
-        self.type          = type
-        self.amount        = amount
-        self.timestamp     = Date()
-        self.interactionID = interactionID
+    private enum CodingKeys: String, CodingKey {
+        case id, type, amount, timestamp, interactionID, outfitSessionId
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id              = try c.decode(UUID.self, forKey: .id)
+        type            = try c.decode(EarningsType.self, forKey: .type)
+        amount          = try c.decode(Double.self, forKey: .amount)
+        timestamp       = try c.decode(Date.self, forKey: .timestamp)
+        interactionID   = try? c.decode(UUID.self, forKey: .interactionID)
+        outfitSessionId = try? c.decode(UUID.self, forKey: .outfitSessionId)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id,        forKey: .id)
+        try c.encode(type,      forKey: .type)
+        try c.encode(amount,    forKey: .amount)
+        try c.encode(timestamp, forKey: .timestamp)
+        try? c.encode(interactionID,   forKey: .interactionID)
+        try? c.encode(outfitSessionId, forKey: .outfitSessionId)
+    }
+
+    init(type: EarningsType, amount: Double, interactionID: UUID? = nil, outfitSessionId: UUID? = nil) {
+        self.id              = UUID()
+        self.type            = type
+        self.amount          = amount
+        self.timestamp       = Date()
+        self.interactionID   = interactionID
+        self.outfitSessionId = outfitSessionId
     }
 }
 
@@ -126,6 +152,73 @@ struct HourlyEarning: Identifiable {
     let total: Double
 }
 
+// MARK: - OutfitStyle / FabricFinish
+
+enum OutfitStyle: String, Codable, CaseIterable {
+    case bikini   = "Bikini"
+    case bodysuit = "Bodysuit"
+    case strappy  = "Strappy"
+    case harness  = "Harness"
+    case other    = "Other"
+}
+
+enum FabricFinish: String, Codable, CaseIterable {
+    case matte        = "Matte"
+    case holographic  = "Holographic"
+    case glitter      = "Glitter"
+    case mesh         = "Mesh"
+    case other        = "Other"
+}
+
+// MARK: - OutfitSession
+
+struct OutfitSession: Identifiable, Codable {
+    let id: UUID
+    let startTime: Date
+    var endTime: Date?
+    var name: String
+    var primaryColor: String
+    var secondaryColor: String
+    var style: OutfitStyle?
+    var fabricFinish: FabricFinish?
+    var shoes: String
+    var hair: String
+    var nails: String
+    var photoFilename: String?
+    var confidenceRating: Int  // 1–5
+    var comfortRating: Int     // 1–5, set at session end
+
+    var isActive: Bool { endTime == nil }
+    var duration: TimeInterval { (endTime ?? Date()).timeIntervalSince(startTime) }
+
+    var durationFormatted: String {
+        let total = Int(duration)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        if h > 0 { return "\(h)h \(m)m" }
+        return "\(m)m"
+    }
+
+    init(name: String = "", primaryColor: String = "", secondaryColor: String = "",
+         style: OutfitStyle? = nil, fabricFinish: FabricFinish? = nil,
+         shoes: String = "", hair: String = "", nails: String = "",
+         photoFilename: String? = nil, confidenceRating: Int = 3) {
+        self.id               = UUID()
+        self.startTime        = Date()
+        self.name             = name
+        self.primaryColor     = primaryColor
+        self.secondaryColor   = secondaryColor
+        self.style            = style
+        self.fabricFinish     = fabricFinish
+        self.shoes            = shoes
+        self.hair             = hair
+        self.nails            = nails
+        self.photoFilename    = photoFilename
+        self.confidenceRating = confidenceRating
+        self.comfortRating    = 0
+    }
+}
+
 // MARK: - Shift
 
 struct Shift: Identifiable, Codable {
@@ -134,6 +227,8 @@ struct Shift: Identifiable, Codable {
     var entries: [EarningsEntry]
     var interactions: [InteractionSession]
     var expenses: [Expense]
+    var outfitSessions: [OutfitSession]
+    var isStarted: Bool
 
     var totalEarnings: Double   { entries.reduce(0) { $0 + $1.amount } }
     var lapDanceTotal: Double   { entries.filter { $0.type == .lapDance }.reduce(0) { $0 + $1.amount } }
@@ -196,36 +291,54 @@ struct Shift: Identifiable, Codable {
             }
     }
 
+    var activeOutfitSession: OutfitSession? {
+        outfitSessions.last(where: { $0.isActive })
+    }
+
+    func earningsForOutfit(_ session: OutfitSession) -> Double {
+        entries.filter { $0.outfitSessionId == session.id }.reduce(0) { $0 + $1.amount }
+    }
+
+    func danceCountForOutfit(_ session: OutfitSession) -> Int {
+        entries.filter { $0.outfitSessionId == session.id && $0.type == .lapDance }.count
+    }
+
     // MARK: Codable
 
     private enum CodingKeys: String, CodingKey {
-        case id, startDate, entries, interactions, expenses
+        case id, startDate, entries, interactions, expenses, outfitSessions, isStarted
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id           = try c.decode(UUID.self, forKey: .id)
-        startDate    = try c.decode(Date.self, forKey: .startDate)
-        entries      = try c.decode([EarningsEntry].self, forKey: .entries)
-        interactions = try c.decode([InteractionSession].self, forKey: .interactions)
-        expenses     = (try? c.decode([Expense].self, forKey: .expenses)) ?? []
+        id             = try c.decode(UUID.self, forKey: .id)
+        startDate      = try c.decode(Date.self, forKey: .startDate)
+        entries        = try c.decode([EarningsEntry].self, forKey: .entries)
+        interactions   = try c.decode([InteractionSession].self, forKey: .interactions)
+        expenses       = (try? c.decode([Expense].self, forKey: .expenses)) ?? []
+        outfitSessions = (try? c.decode([OutfitSession].self, forKey: .outfitSessions)) ?? []
+        isStarted      = (try? c.decode(Bool.self, forKey: .isStarted)) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(id,           forKey: .id)
-        try c.encode(startDate,    forKey: .startDate)
-        try c.encode(entries,      forKey: .entries)
-        try c.encode(interactions, forKey: .interactions)
-        try c.encode(expenses,     forKey: .expenses)
+        try c.encode(id,             forKey: .id)
+        try c.encode(startDate,      forKey: .startDate)
+        try c.encode(entries,        forKey: .entries)
+        try c.encode(interactions,   forKey: .interactions)
+        try c.encode(expenses,       forKey: .expenses)
+        try c.encode(outfitSessions, forKey: .outfitSessions)
+        try c.encode(isStarted,      forKey: .isStarted)
     }
 
     init() {
-        self.id           = UUID()
-        self.startDate    = Date()
-        self.entries      = []
-        self.interactions = []
-        self.expenses     = []
+        self.id             = UUID()
+        self.startDate      = Date()
+        self.entries        = []
+        self.interactions   = []
+        self.expenses       = []
+        self.outfitSessions = []
+        self.isStarted      = false
     }
 }
 
@@ -239,31 +352,34 @@ struct ShiftRecord: Identifiable, Codable {
     let conversionRate: Double
     let durationHours: Double
     let netProfit: Double
+    var outfitSessions: [OutfitSession]
 
     private enum CodingKeys: String, CodingKey {
-        case id, date, totalEarnings, interactionCount, conversionRate, durationHours, netProfit
+        case id, date, totalEarnings, interactionCount, conversionRate, durationHours, netProfit, outfitSessions
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id             = try c.decode(UUID.self,   forKey: .id)
-        date           = try c.decode(Date.self,   forKey: .date)
-        totalEarnings  = try c.decode(Double.self, forKey: .totalEarnings)
-        interactionCount = try c.decode(Int.self,  forKey: .interactionCount)
-        conversionRate = try c.decode(Double.self, forKey: .conversionRate)
-        durationHours  = try c.decode(Double.self, forKey: .durationHours)
-        netProfit      = (try? c.decode(Double.self, forKey: .netProfit)) ?? totalEarnings
+        id               = try c.decode(UUID.self,   forKey: .id)
+        date             = try c.decode(Date.self,   forKey: .date)
+        totalEarnings    = try c.decode(Double.self, forKey: .totalEarnings)
+        interactionCount = try c.decode(Int.self,    forKey: .interactionCount)
+        conversionRate   = try c.decode(Double.self, forKey: .conversionRate)
+        durationHours    = try c.decode(Double.self, forKey: .durationHours)
+        netProfit        = (try? c.decode(Double.self, forKey: .netProfit)) ?? totalEarnings
+        outfitSessions   = (try? c.decode([OutfitSession].self, forKey: .outfitSessions)) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(id,             forKey: .id)
-        try c.encode(date,           forKey: .date)
-        try c.encode(totalEarnings,  forKey: .totalEarnings)
+        try c.encode(id,               forKey: .id)
+        try c.encode(date,             forKey: .date)
+        try c.encode(totalEarnings,    forKey: .totalEarnings)
         try c.encode(interactionCount, forKey: .interactionCount)
-        try c.encode(conversionRate, forKey: .conversionRate)
-        try c.encode(durationHours,  forKey: .durationHours)
-        try c.encode(netProfit,      forKey: .netProfit)
+        try c.encode(conversionRate,   forKey: .conversionRate)
+        try c.encode(durationHours,    forKey: .durationHours)
+        try c.encode(netProfit,        forKey: .netProfit)
+        try c.encode(outfitSessions,   forKey: .outfitSessions)
     }
 
     init(from shift: Shift) {
@@ -274,5 +390,6 @@ struct ShiftRecord: Identifiable, Codable {
         self.conversionRate   = shift.conversionRate
         self.durationHours    = shift.shiftDurationHours
         self.netProfit        = shift.netProfit
+        self.outfitSessions   = shift.outfitSessions
     }
 }

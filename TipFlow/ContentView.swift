@@ -12,6 +12,8 @@ struct ContentView: View {
         TabView {
             DashboardView()
                 .tabItem { Label("Dashboard", systemImage: "dollarsign.circle.fill") }
+            OutfitView()
+                .tabItem { Label("Outfit", systemImage: "tshirt.fill") }
             AnalyticsView()
                 .tabItem { Label("Analytics", systemImage: "chart.bar.fill") }
         }

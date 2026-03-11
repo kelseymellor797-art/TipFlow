@@ -138,6 +138,9 @@ struct DashboardView: View {
         .sheet(isPresented: $store.showEndInteractionSheet) {
             EndInteractionSheet()
         }
+        .sheet(isPresented: $store.showStartShift) {
+            OutfitSetupSheet(mode: .startShift)
+        }
         .overlay {
             if store.showOneMinutePrompt {
                 OneMinutePromptOverlay()

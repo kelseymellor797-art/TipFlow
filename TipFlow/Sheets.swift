@@ -3,6 +3,7 @@
 
 import SwiftUI
 import UIKit
+import PhotosUI
 
 // MARK: - OneMinutePromptOverlay
 
@@ -718,5 +719,395 @@ private struct ExpenseTypeChip: View {
         }
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.15), value: isSelected)
+    }
+}
+
+// MARK: - OutfitSetupSheet
+
+enum OutfitSetupMode: Equatable {
+    case startShift
+    case changeOutfit
+}
+
+struct OutfitSetupSheet: View {
+    @Environment(ShiftStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+
+    let mode: OutfitSetupMode
+
+    @State private var name              = ""
+    @State private var primaryColor      = ""
+    @State private var secondaryColor    = ""
+    @State private var selectedStyle: OutfitStyle?   = nil
+    @State private var selectedFinish: FabricFinish? = nil
+    @State private var shoes             = ""
+    @State private var hair              = ""
+    @State private var nails             = ""
+    @State private var confidenceRating  = 3
+    @State private var selectedImage: UIImage? = nil
+    @State private var showMoreDetails   = false
+    @State private var endingComfortRating = 3
+    @State private var showCamera        = false
+    @State private var showGallery       = false
+    @State private var selectedPhotoItem: PhotosPickerItem? = nil
+
+    private var previousSession: OutfitSession? {
+        store.currentShift.outfitSessions.last(where: { $0.isActive })
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.sheetBg.ignoresSafeArea()
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        if mode == .changeOutfit, let prev = previousSession {
+                            previousSessionCard(prev)
+                        }
+
+                        photoSection
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            fieldLabel("Outfit Name")
+                            TextField("e.g. Black holographic set", text: $name)
+                                .textFieldStyle(.plain)
+                                .font(.body)
+                                .foregroundStyle(AppTheme.textPrimary)
+                                .padding(14)
+                                .background(AppTheme.cardBg)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.borderSubtle, lineWidth: 3))
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            fieldLabel("Style")
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(OutfitStyle.allCases, id: \.self) { style in
+                                        chipButton(style.rawValue, isSelected: selectedStyle == style) {
+                                            selectedStyle = selectedStyle == style ? nil : style
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 1)
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            fieldLabel("Fabric Finish")
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(FabricFinish.allCases, id: \.self) { finish in
+                                        chipButton(finish.rawValue, isSelected: selectedFinish == finish) {
+                                            selectedFinish = selectedFinish == finish ? nil : finish
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 1)
+                            }
+                        }
+
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                fieldLabel("Primary Color")
+                                TextField("e.g. Black", text: $primaryColor)
+                                    .textFieldStyle(.plain)
+                                    .font(.body)
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                    .padding(12)
+                                    .background(AppTheme.cardBg)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.borderSubtle, lineWidth: 3))
+                            }
+                            VStack(alignment: .leading, spacing: 8) {
+                                fieldLabel("Secondary")
+                                TextField("e.g. Silver", text: $secondaryColor)
+                                    .textFieldStyle(.plain)
+                                    .font(.body)
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                    .padding(12)
+                                    .background(AppTheme.cardBg)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.borderSubtle, lineWidth: 3))
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            fieldLabel("Confidence Rating")
+                            HStack(spacing: 10) {
+                                ForEach(1...5, id: \.self) { i in
+                                    Button { confidenceRating = i } label: {
+                                        Image(systemName: i <= confidenceRating ? "star.fill" : "star")
+                                            .font(.title2)
+                                            .foregroundStyle(i <= confidenceRating
+                                                ? Color(red: 1, green: 0.85, blue: 0.2)
+                                                : AppTheme.textTertiary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+
+                        DisclosureGroup(isExpanded: $showMoreDetails) {
+                            VStack(spacing: 12) {
+                                detailField("Shoes", placeholder: "e.g. Clear platform heels", text: $shoes)
+                                detailField("Hair",  placeholder: "e.g. Long curly",           text: $hair)
+                                detailField("Nails", placeholder: "e.g. Long, nude",           text: $nails)
+                            }
+                            .padding(.top, 12)
+                        } label: {
+                            Text("More Details (shoes, hair, nails)")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.neonPurple)
+                        }
+                        .padding(14)
+                        .background(AppTheme.cardBg)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.borderSubtle, lineWidth: 3))
+
+                        Button(action: confirm) {
+                            Text(mode == .startShift ? "Start Shift" : "Switch Outfit")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 18)
+                                .background(AppTheme.primaryGradient)
+                                .foregroundStyle(.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .shadow(color: AppTheme.neonPink.opacity(0.4), radius: 10, y: 4)
+                        }
+                        .buttonStyle(ScaleButtonStyle())
+
+                        Button { skip() } label: {
+                            Text(mode == .startShift ? "Skip outfit tracking" : "Cancel")
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.textTertiary)
+                        }
+                        .padding(.bottom, 8)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    .padding(.bottom, 30)
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(AppTheme.sheetBg, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text(mode == .startShift ? "Start Your Shift" : "New Outfit")
+                        .font(.headline.bold())
+                        .foregroundStyle(AppTheme.textPrimary)
+                }
+            }
+        }
+        .photosPicker(isPresented: $showGallery, selection: $selectedPhotoItem, matching: .images)
+        .onChange(of: selectedPhotoItem) { _, item in
+            Task {
+                if let data = try? await item?.loadTransferable(type: Data.self),
+                   let img = UIImage(data: data) {
+                    selectedImage = img
+                }
+            }
+        }
+        .sheet(isPresented: $showCamera) {
+            CameraPickerView(image: $selectedImage)
+        }
+    }
+
+    @ViewBuilder
+    private var photoSection: some View {
+        VStack(spacing: 12) {
+            if let img = selectedImage {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(AppTheme.borderGlow, lineWidth: 3))
+                    .onTapGesture { showGallery = true }
+            } else {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(AppTheme.cardBg)
+                    .frame(height: 120)
+                    .overlay(
+                        VStack(spacing: 6) {
+                            Image(systemName: "camera.fill")
+                                .font(.title2)
+                                .foregroundStyle(AppTheme.textTertiary)
+                            Text("Add outfit photo")
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.textTertiary)
+                        }
+                    )
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(AppTheme.borderSubtle, lineWidth: 3))
+            }
+            HStack(spacing: 12) {
+                Button { showCamera = true } label: {
+                    Label("Camera", systemImage: "camera")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(AppTheme.cardBg)
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.borderSubtle, lineWidth: 3))
+                }
+                .buttonStyle(ScaleButtonStyle())
+                Button { showGallery = true } label: {
+                    Label("Gallery", systemImage: "photo.on.rectangle")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(AppTheme.cardBg)
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.borderSubtle, lineWidth: 3))
+                }
+                .buttonStyle(ScaleButtonStyle())
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func previousSessionCard(_ session: OutfitSession) -> some View {
+        let earnings = store.currentShift.earningsForOutfit(session)
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "Ending Outfit")
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(session.name.isEmpty ? "Current Outfit" : session.name)
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.textPrimary)
+                    Text("\(earnings.formatted(.currency(code: "USD"))) · \(session.durationFormatted)")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+                Spacer()
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Comfort rating for this outfit?")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.textSecondary)
+                HStack(spacing: 10) {
+                    ForEach(1...5, id: \.self) { i in
+                        Button { endingComfortRating = i } label: {
+                            Image(systemName: i <= endingComfortRating ? "heart.fill" : "heart")
+                                .font(.title2)
+                                .foregroundStyle(i <= endingComfortRating
+                                    ? Color(red: 0.10, green: 0.85, blue: 0.80)
+                                    : AppTheme.textTertiary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .neonCard(glow: AppTheme.neonPurple.opacity(0.25))
+    }
+
+    @ViewBuilder
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(AppTheme.neonPurple.opacity(0.85))
+            .textCase(.uppercase)
+            .kerning(1.2)
+    }
+
+    @ViewBuilder
+    private func detailField(_ label: String, placeholder: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            fieldLabel(label)
+            TextField(placeholder, text: text)
+                .textFieldStyle(.plain)
+                .font(.body)
+                .foregroundStyle(AppTheme.textPrimary)
+                .padding(12)
+                .background(AppTheme.cardBg)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(AppTheme.borderSubtle, lineWidth: 3))
+        }
+    }
+
+    @ViewBuilder
+    private func chipButton(_ label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.subheadline.weight(isSelected ? .bold : .regular))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(isSelected ? AppTheme.neonPurple.opacity(0.25) : AppTheme.cardBg)
+                .foregroundStyle(isSelected ? AppTheme.neonPurple : AppTheme.textSecondary)
+                .clipShape(Capsule())
+                .overlay(Capsule().strokeBorder(
+                    isSelected ? AppTheme.neonPurple.opacity(0.6) : AppTheme.borderSubtle,
+                    lineWidth: 3))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func confirm() {
+        var photoFilename: String? = nil
+        if let img = selectedImage {
+            photoFilename = store.saveOutfitPhoto(img)
+        }
+        let session = OutfitSession(
+            name: name,
+            primaryColor: primaryColor,
+            secondaryColor: secondaryColor,
+            style: selectedStyle,
+            fabricFinish: selectedFinish,
+            shoes: shoes,
+            hair: hair,
+            nails: nails,
+            photoFilename: photoFilename,
+            confidenceRating: confidenceRating
+        )
+        switch mode {
+        case .startShift:
+            store.startShift(session: session)
+        case .changeOutfit:
+            store.changeOutfit(endingComfortRating: endingComfortRating, newSession: session)
+        }
+        dismiss()
+    }
+
+    private func skip() {
+        if mode == .startShift { store.skipOutfitTracking() }
+        dismiss()
+    }
+}
+
+// MARK: - CameraPickerView
+
+struct CameraPickerView: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: CameraPickerView
+        init(_ parent: CameraPickerView) { self.parent = parent }
+
+        func imagePickerController(_ picker: UIImagePickerController,
+                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            parent.image = info[.originalImage] as? UIImage
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
     }
 }

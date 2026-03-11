@@ -1,6 +1,7 @@
 // ShiftStore.swift — TipFlow
 import Foundation
 import Observation
+import UIKit
 
 @Observable
 final class ShiftStore {
@@ -15,6 +16,7 @@ final class ShiftStore {
     var djRate:      Double = 0.10
     var bouncerRate: Double = 0.05
     var lastInteractionEndTime: Date? = nil
+    var showStartShift: Bool = false
 
     private var timerTask: Task<Void, Never>?
     private var nextPromptAt: TimeInterval = 60
@@ -33,7 +35,7 @@ final class ShiftStore {
     init() { load() }
 
     func logEarnings(type: EarningsType, amount: Double, interactionID: UUID? = nil) {
-        let entry = EarningsEntry(type: type, amount: amount, interactionID: interactionID)
+        let entry = EarningsEntry(type: type, amount: amount, interactionID: interactionID, outfitSessionId: currentShift.activeOutfitSession?.id)
         currentShift.entries.append(entry)
         saveCurrentShift()
     }
@@ -91,10 +93,15 @@ final class ShiftStore {
 
     func endShift() {
         if activeInteraction != nil { endInteraction(outcome: .noSale, amount: nil) }
+        // Close any active outfit session
+        if let idx = currentShift.outfitSessions.indices.last(where: { currentShift.outfitSessions[$0].isActive }) {
+            currentShift.outfitSessions[idx].endTime = Date()
+        }
         let record = ShiftRecord(from: currentShift)
         pastShifts.insert(record, at: 0)
         currentShift = Shift()
         lastInteractionEndTime = nil
+        showStartShift = true
         savePastShifts()
         saveCurrentShift()
     }
@@ -158,6 +165,7 @@ final class ShiftStore {
            let shift = try? JSONDecoder().decode(Shift.self, from: data) {
             currentShift = shift
         }
+        if !currentShift.isStarted { showStartShift = true }
 
         if let data    = UserDefaults.standard.data(forKey: Keys.pastShifts),
            let records = try? JSONDecoder().decode([ShiftRecord].self, from: data) {
@@ -195,5 +203,47 @@ final class ShiftStore {
     func updateBouncerRate(_ rate: Double) {
         bouncerRate = rate
         UserDefaults.standard.set(rate, forKey: Keys.bouncerRate)
+    }
+
+    // MARK: - Outfit Session Management
+
+    func startShift(session: OutfitSession) {
+        currentShift.isStarted = true
+        currentShift.outfitSessions.append(session)
+        showStartShift = false
+        saveCurrentShift()
+    }
+
+    func skipOutfitTracking() {
+        currentShift.isStarted = true
+        showStartShift = false
+        saveCurrentShift()
+    }
+
+    func changeOutfit(endingComfortRating: Int, newSession: OutfitSession) {
+        if let idx = currentShift.outfitSessions.indices.last(where: { currentShift.outfitSessions[$0].isActive }) {
+            currentShift.outfitSessions[idx].endTime = Date()
+            currentShift.outfitSessions[idx].comfortRating = endingComfortRating
+        }
+        currentShift.outfitSessions.append(newSession)
+        saveCurrentShift()
+    }
+
+    // MARK: - Photo Helpers
+
+    func saveOutfitPhoto(_ image: UIImage) -> String {
+        let filename = "outfit_\(UUID().uuidString).jpg"
+        if let data = image.jpegData(compressionQuality: 0.8) {
+            let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent(filename)
+            try? data.write(to: url)
+        }
+        return filename
+    }
+
+    func loadOutfitPhoto(filename: String) -> UIImage? {
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(filename)
+        return UIImage(contentsOfFile: url.path)
     }
 }
